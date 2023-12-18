@@ -1,3 +1,5 @@
+use bevy::log::debug;
+
 /// Calculate the coordinate of a chunk from a given tile coordinate and chunk size
 #[inline]
 pub fn calculate_chunk_coordinate<const N: usize>(
@@ -5,7 +7,11 @@ pub fn calculate_chunk_coordinate<const N: usize>(
     chunk_size: usize,
 ) -> [isize; N] {
     for i in tile_c.iter_mut() {
-        *i = *i / (chunk_size as isize) - if *i < 0 { 1 } else { 0 }
+        if *i < 0 {
+            *i = (*i + 1) / (chunk_size as isize) - 1;
+        } else {
+            *i /= chunk_size as isize;
+        }
     }
     tile_c
 }
@@ -173,6 +179,7 @@ mod tests {
     #[case(16, [15, 15], 255)]
     #[case(16, [-1, -1], 255)]
     #[case(16, [-16, -16], 0)]
+    #[case(8, [-8, -0], 0)]
     fn tile_index_test(
         #[case] chunk_size: usize,
         #[case] tile_c: [isize; 2],

@@ -1,6 +1,5 @@
 use std::ops::{Deref, DerefMut};
 
-use aery::prelude::*;
 use bevy::{
     ecs::{
         query::{ReadOnlyWorldQuery, With, WorldQuery},
@@ -30,8 +29,8 @@ where
     Q: WorldQuery + 'static,
     F: ReadOnlyWorldQuery + 'static,
 {
-    tile_q: Query<'w, 's, Q, (F, Relations<InChunk<L, N>>)>,
-    chunk_q: Query<'w, 's, &'static Chunk, Relations<InMap<L, N>>>,
+    tile_q: Query<'w, 's, Q, (F, With<InChunk>, With<MapLabel<L>>)>,
+    chunk_q: Query<'w, 's, &'static Chunk, (With<InMap>, With<MapLabel<L>>)>,
     map_q: Query<'w, 's, &'static TileMap<N>, With<MapLabel<L>>>,
 }
 
@@ -41,7 +40,7 @@ where
     Q: WorldQuery + 'static,
     F: ReadOnlyWorldQuery + 'static,
 {
-    type Target = Query<'w, 's, Q, (F, Relations<InChunk<L, N>>)>;
+    type Target = Query<'w, 's, Q, (F, With<InChunk>, With<MapLabel<L>>)>;
 
     fn deref(&self) -> &Self::Target {
         &self.tile_q

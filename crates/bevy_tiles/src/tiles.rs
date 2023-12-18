@@ -1,4 +1,3 @@
-use aery::prelude::*;
 use bevy::prelude::*;
 use std::ops::Deref;
 
@@ -40,6 +39,12 @@ impl<const N: usize> TileCoord<N> {
     }
 }
 
+impl<const N: usize> From<[isize; N]> for TileCoord<N> {
+    fn from(value: [isize; N]) -> Self {
+        Self(value)
+    }
+}
+
 impl<const N: usize> Deref for TileCoord<N> {
     type Target = [isize; N];
 
@@ -48,7 +53,13 @@ impl<const N: usize> Deref for TileCoord<N> {
     }
 }
 
-/// An aery relation on tiles that point towards the chunk they are a part of.
-#[derive(Relation)]
-#[aery(Recursive)]
-pub struct InChunk<L, const N: usize>(std::marker::PhantomData<L>);
+/// A relation on tiles that point towards the chunk they are a part of.
+#[derive(Component)]
+pub struct InChunk(pub(crate) Entity);
+
+impl InChunk {
+    /// Get the referenced chunk entity.
+    pub fn get(&self) -> Entity {
+        self.0
+    }
+}

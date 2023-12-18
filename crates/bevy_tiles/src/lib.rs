@@ -1,6 +1,5 @@
 //! A general purpose grided entity library meant to support tilemap libraries,
 //! or other libraries that require accessing entities in a grid based manner.
-//! Built on top of the [`aery`](https://github.com/iiYese/aery) relations crate.  
 //!
 //! The goal is to keep the API surface as simple and intuitive as possible,
 //! and to avoid deferred operations/states where possible to make the structures more intuitive work with.
@@ -8,7 +7,6 @@
 
 #![deny(missing_docs)]
 
-use aery::Aery;
 use bevy::app::Plugin;
 
 /// Provides chunk level utilities.
@@ -22,7 +20,7 @@ pub mod maps;
 /// Provides tile level utilities.
 pub mod tiles;
 
-///
+/// Provides most of what you need to get started.
 pub mod prelude {
     pub use crate::commands::{TileCommandExt, TileCommands};
 
@@ -41,9 +39,5 @@ pub mod prelude {
 pub struct TilesPlugin;
 
 impl Plugin for TilesPlugin {
-    fn build(&self, app: &mut bevy::prelude::App) {
-        if !app.is_plugin_added::<Aery>() {
-            app.add_plugins(Aery);
-        }
-    }
+    fn build(&self, app: &mut bevy::prelude::App) {}
 }

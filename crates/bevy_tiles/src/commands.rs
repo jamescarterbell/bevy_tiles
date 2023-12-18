@@ -14,10 +14,6 @@ use crate::{
     tiles::{InChunk, TileCoord, TileIndex},
 };
 
-use aery::{
-    edges::{CheckedDespawn, Unset, Withdraw},
-    prelude::Set,
-};
 use bevy::{
     ecs::system::{Command, EntityCommands},
     prelude::{Bundle, Commands, Entity, With, World},
@@ -228,6 +224,19 @@ where
         });
     }
 
+    /// Spawn a new map, overwriting any old maps found.
+    pub fn spawn_map<T>(&mut self, bundle: T) -> EntityCommands<'w, 's, '_>
+    where
+        T: Bundle + 'static,
+    {
+        let map_id = self.spawn(bundle).id();
+        self.add(SpawnMap::<L, N> {
+            map_id,
+            label: PhantomData,
+        });
+        self.entity(map_id)
+    }
+
     /// Recursively despawns a map and all it's chunks and tiles.
     pub fn despawn_map(&mut self) -> &mut Self {
         self.add(DespawnMap::<L, N> { label: PhantomData });
@@ -250,9 +259,14 @@ where
     if let Some(chunk_info) = remove_chunk::<N>(world, map, chunk_c) {
         chunk_info
     } else {
-        let chunk_id = world.spawn(ChunkCoord::from(chunk_c)).id();
+        let chunk_id = world
+            .spawn((
+                ChunkCoord::from(chunk_c),
+                MapLabel::<L>::default(),
+                InMap(map_id),
+            ))
+            .id();
         map.chunks.insert(chunk_c.into(), chunk_id);
-        Set::<InMap<L, N>>::new(chunk_id, map_id).apply(world);
         (chunk_id, Chunk::new(L::CHUNK_SIZE.pow(N as u32)))
     }
 }
@@ -283,7 +297,7 @@ where
     } else {
         (
             world.spawn(MapLabel::<L>::default()).id(),
-            TileMap::<N>::default(),
+            TileMap::<N>::with_chunk_size(L::CHUNK_SIZE),
         )
     }
 }
@@ -331,12 +345,12 @@ where
         }
     }
 
-    Set::<InChunk<L, N>>::new(tile_id, chunk_id).apply(world);
-
-    world
-        .get_entity_mut(tile_id)
-        .unwrap()
-        .insert((TileIndex::from(tile_i), TileCoord::<N>::new(tile_c)));
+    world.get_entity_mut(tile_id).unwrap().insert((
+        TileIndex::from(tile_i),
+        TileCoord::<N>::new(tile_c),
+        MapLabel::<L>::default(),
+        InChunk(chunk_id),
+    ));
 
     world.get_entity_mut(chunk_id).unwrap().insert(chunk);
     world.get_entity_mut(map_id).unwrap().insert(map);
@@ -369,9 +383,8 @@ where
         .and_then(|tile| tile.take())
         .and_then(|tile_id| world.get_entity_mut(tile_id))
     {
-        tile_e.remove::<(TileIndex, TileCoord)>();
+        tile_e.remove::<(TileIndex, TileCoord, MapLabel<L>, InChunk)>();
         let tile_id = tile_e.id();
-        Unset::<InChunk<L, N>>::new(tile_id, chunk_id).apply(world);
         Some(tile_id)
     } else {
         None
@@ -412,12 +425,12 @@ pub fn insert_tile_batch<L, const N: usize>(
                 }
             }
 
-            Set::<InChunk<L, N>>::new(tile_id, chunk_id).apply(world);
-
-            world
-                .get_entity_mut(tile_id)
-                .unwrap()
-                .insert((TileIndex::from(tile_i), TileCoord::<N>::new(tile_c)));
+            world.get_entity_mut(tile_id).unwrap().insert((
+                TileIndex::from(tile_i),
+                TileCoord::<N>::new(tile_c),
+                MapLabel::<L>::default(),
+                InChunk(chunk_id),
+            ));
         }
 
         world.get_entity_mut(chunk_id).unwrap().insert(chunk);
@@ -473,9 +486,8 @@ where
                 .and_then(|tile| tile.take())
                 .and_then(|tile_id| world.get_entity_mut(tile_id))
             {
-                tile_e.remove::<(TileIndex, TileCoord)>();
+                tile_e.remove::<(TileIndex, TileCoord, MapLabel<L>, InChunk)>();
                 let tile_id = tile_e.id();
-                Unset::<InChunk<L, N>>::new(tile_id, chunk_id).apply(world);
                 tile_ids.push((tile_c, tile_id));
             }
         }
@@ -495,15 +507,16 @@ where
     let (map_id, mut map) = spawn_or_remove_map::<L, N>(world);
 
     // Despawn the chunk if it exists
-    if let Some(chunk_id) = map.chunks.insert(chunk_c.into(), chunk_id) {
-        CheckedDespawn(chunk_id).apply(world);
+    if let Some(old_chunk) = take_chunk_despawn_tiles_inner::<L, N>(world, chunk_c, &mut map) {
+        world.despawn(old_chunk);
     }
 
     world.get_entity_mut(chunk_id).unwrap().insert((
         Chunk::new(L::CHUNK_SIZE.pow(N as u32)),
         ChunkCoord::from(chunk_c),
+        MapLabel::<L>::default(),
+        InMap(map_id),
     ));
-    Set::<InMap<L, N>>::new(chunk_id, map_id).apply(world);
     map.chunks.insert(chunk_c.into(), chunk_id);
 
     world.entity_mut(map_id).insert(map);
@@ -526,10 +539,15 @@ where
         .remove::<ChunkCoord<N>>(&chunk_c.into())
         .and_then(|chunk_id| world.get_entity_mut(chunk_id))
     {
-        chunk_e.remove::<(Chunk, ChunkCoord)>();
+        let (chunk, _, _, _) = chunk_e
+            .take::<(Chunk, ChunkCoord, MapLabel<L>, InMap)>()
+            .unwrap();
         let chunk_id = chunk_e.id();
-        Unset::<InMap<L, N>>::new(chunk_id, map_id).apply(world);
-        Withdraw::<InChunk<L, N>>::new(chunk_id).apply(world);
+        for tile_id in chunk.tiles.into_iter().flatten() {
+            if let Some(mut tile) = world.get_entity_mut(tile_id) {
+                tile.remove::<InChunk>();
+            }
+        }
         Some(chunk_id)
     } else {
         None
@@ -551,26 +569,38 @@ where
     // Get the map or return
     let (map_id, mut map) = remove_map::<L, N>(world)?;
 
+    let chunk_id = take_chunk_despawn_tiles_inner::<L, N>(world, chunk_c, &mut map);
+
+    world.entity_mut(map_id).insert(map);
+
+    chunk_id
+}
+
+pub(crate) fn take_chunk_despawn_tiles_inner<L, const N: usize>(
+    world: &mut World,
+    chunk_c: [isize; N],
+    mut map: &mut TileMap<N>,
+) -> Option<Entity>
+where
+    L: TileMapLabel + Send + 'static,
+{
     // Get the old chunk or return
     let chunk_id = if let Some(mut chunk_e) = map
         .chunks
         .remove::<ChunkCoord<N>>(&chunk_c.into())
         .and_then(|chunk_id| world.get_entity_mut(chunk_id))
     {
-        let (chunk, _) = chunk_e.take::<(Chunk, ChunkCoord)>().unwrap();
+        let (chunk, _, _, _) = chunk_e
+            .take::<(Chunk, ChunkCoord, MapLabel<L>, InMap)>()
+            .unwrap();
         let chunk_id = chunk_e.id();
         for tile_id in chunk.tiles.into_iter().flatten() {
             world.despawn(tile_id);
         }
-        Unset::<InMap<L, N>>::new(chunk_id, map_id).apply(world);
-        Withdraw::<InChunk<L, N>>::new(chunk_id).apply(world);
         Some(chunk_id)
     } else {
         None
     };
-
-    world.entity_mut(map_id).insert(map);
-
     chunk_id
 }
 
@@ -586,16 +616,16 @@ pub fn insert_chunk_batch<L, const N: usize>(
 
     // Get the chunks and entities from the map
     for (chunk_c, chunk_id) in chunks.into_iter() {
-        // Despawn the chunk if it exists
-        if let Some(chunk_id) = map.chunks.insert(chunk_c.into(), chunk_id) {
-            CheckedDespawn(chunk_id).apply(world);
+        if let Some(old_chunk) = take_chunk_despawn_tiles_inner::<L, N>(world, chunk_c, &mut map) {
+            world.despawn(old_chunk);
         }
 
         world.get_entity_mut(chunk_id).unwrap().insert((
             Chunk::new(L::CHUNK_SIZE.pow(N as u32)),
             ChunkCoord::from(chunk_c),
+            MapLabel::<L>::default(),
+            InMap(map_id),
         ));
-        Set::<InMap<L, N>>::new(chunk_id, map_id).apply(world);
         map.chunks.insert(chunk_c.into(), chunk_id);
     }
 
@@ -629,10 +659,15 @@ where
             .remove::<ChunkCoord<N>>(&chunk_c.into())
             .and_then(|chunk_id| world.get_entity_mut(chunk_id))
         {
-            chunk_e.remove::<(Chunk, ChunkCoord)>();
+            let (chunk, _, _, _) = chunk_e
+                .take::<(Chunk, ChunkCoord, MapLabel<L>, InMap)>()
+                .unwrap();
             let chunk_id = chunk_e.id();
-            Unset::<InMap<L, N>>::new(chunk_id, map_id).apply(world);
-            Withdraw::<InChunk<L, N>>::new(chunk_id).apply(world);
+            for tile_id in chunk.tiles.into_iter().flatten() {
+                if let Some(mut tile) = world.get_entity_mut(tile_id) {
+                    tile.remove::<InChunk>();
+                }
+            }
             chunk_ids.push((chunk_c, chunk_id));
         };
     }
@@ -666,19 +701,34 @@ where
             .remove::<ChunkCoord<N>>(&chunk_c.into())
             .and_then(|chunk_id| world.get_entity_mut(chunk_id))
         {
-            let (chunk, _) = chunk_e.take::<(Chunk, ChunkCoord)>().unwrap();
+            let (chunk, _, _, _) = chunk_e
+                .take::<(Chunk, ChunkCoord, MapLabel<L>, InMap)>()
+                .unwrap();
             let chunk_id = chunk_e.id();
             for tile_id in chunk.tiles.into_iter().flatten() {
                 world.despawn(tile_id);
             }
-            Unset::<InMap<L, N>>::new(chunk_id, map_id).apply(world);
-            Withdraw::<InChunk<L, N>>::new(chunk_id).apply(world);
             chunk_ids.push((chunk_c, chunk_id));
         };
     }
 
     world.get_entity_mut(map_id).unwrap().insert(map);
     chunk_ids
+}
+
+/// Insert the given entity and have it be treated as the given map.
+/// # Note
+/// This will despawn any existing map with this label.
+pub fn insert_map<L, const N: usize>(world: &mut World, map_id: Entity)
+where
+    L: TileMapLabel + Send + 'static,
+{
+    let map_info = remove_map::<L, N>(world);
+    DespawnMap::<L, N>::default().apply(world);
+    world.entity_mut(map_id).insert((
+        MapLabel::<L>::default(),
+        TileMap::<N>::with_chunk_size(L::CHUNK_SIZE),
+    ));
 }
 
 trait GroupBy: Iterator {

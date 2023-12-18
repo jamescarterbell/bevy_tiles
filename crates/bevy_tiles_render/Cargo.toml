@@ -19,18 +19,20 @@ opt-level = 1
 opt-level = 3
 
 [dependencies]
-aery = "0.5.1"
-bevy = { version = "0.12", default-features = false, features = [
+bevy = { workspace = true, features = [
     "bevy_core_pipeline",
     "bevy_render",
     "bevy_asset",
     "bevy_sprite",
 ] }
 bevy_tiles = {path = "../bevy_tiles"}
+crossbeam = {workspace = true}
+dashmap = {workspace = true}
 
 [dev-dependencies]
-rstest = "0.18.2"
-bevy = {version = "0.12", default-features = true}
+rstest = {workspace = true}
+bevy = {workspace = true, default-features = true}
+rand = {workspace = true}
 
-[lints.clippy]
-all = "deny"
+[lints]
+workspace = true

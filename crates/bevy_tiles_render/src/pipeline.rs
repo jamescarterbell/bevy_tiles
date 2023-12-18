@@ -1,251 +1,101 @@
 use bevy::{
-    prelude::{Component, FromWorld, HandleUntyped, Resource, Shader, World},
-    reflect::TypeUuid,
+    ecs::{
+        system::Resource,
+        world::{FromWorld, World},
+    },
     render::{
-        globals::GlobalsUniform,
         render_resource::{
-            BindGroupLayout, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType,
-            BlendComponent, BlendFactor, BlendOperation, BlendState, BufferBindingType,
-            ColorTargetState, ColorWrites, Face, FragmentState, FrontFace, MultisampleState,
-            PolygonMode, PrimitiveState, PrimitiveTopology, RenderPipelineDescriptor,
-            SamplerBindingType, ShaderStages, ShaderType, SpecializedRenderPipeline, TextureFormat,
-            TextureSampleType, TextureViewDimension, VertexBufferLayout, VertexFormat, VertexState,
-            VertexStepMode,
+            BindGroupLayout, BlendState, ColorTargetState, ColorWrites, Face, FragmentState,
+            FrontFace, MultisampleState, PolygonMode, PrimitiveState, PrimitiveTopology,
+            RenderPipelineDescriptor, SpecializedRenderPipeline, TextureFormat, VertexBufferLayout,
+            VertexFormat, VertexState, VertexStepMode,
         },
         renderer::RenderDevice,
         texture::BevyDefault,
-        view::{ViewTarget, ViewUniform},
+        view::ViewTarget,
     },
+    sprite::{Mesh2dPipeline, Mesh2dPipelineKey},
 };
 
-use crate::map::{HexCoordSystem, IsoCoordSystem, TilemapType};
+use crate::{
+    bindings::{ChunkBatchBindGroupLayouts, MapTransformUniform},
+    TILES_FRAG, TILES_VERT,
+};
 
-use super::{chunk::TilemapUniformData, prepare::MeshUniform};
-
-pub const TILEMAP_SHADER_VERTEX: HandleUntyped =
-    HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 8094008129742001941);
-pub const TILEMAP_SHADER_FRAGMENT: HandleUntyped =
-    HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 5716002228110903793);
-
-#[derive(Clone, Resource)]
-pub struct TilemapPipeline {
-    pub view_layout: BindGroupLayout,
-    pub material_layout: BindGroupLayout,
-    pub mesh_layout: BindGroupLayout,
+#[derive(Resource)]
+pub struct TilesChunkPipeline {
+    pub mesh2d_pipeline: Mesh2dPipeline,
+    pub chunk_batch_bind_groups: ChunkBatchBindGroupLayouts,
 }
 
-impl FromWorld for TilemapPipeline {
+impl FromWorld for TilesChunkPipeline {
     fn from_world(world: &mut World) -> Self {
-        let world = world.cell();
-        let render_device = world.get_resource::<RenderDevice>().unwrap();
-
-        let view_layout = render_device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            entries: &[
-                // View
-                BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
-                    ty: BindingType::Buffer {
-                        ty: BufferBindingType::Uniform,
-                        has_dynamic_offset: true,
-                        min_binding_size: Some(ViewUniform::min_size()),
-                    },
-                    count: None,
-                },
-                BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: ShaderStages::VERTEX_FRAGMENT,
-                    ty: BindingType::Buffer {
-                        ty: BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: Some(GlobalsUniform::min_size()),
-                    },
-                    count: None,
-                },
-            ],
-            label: Some("tilemap_view_layout"),
-        });
-
-        let mesh_layout = render_device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            entries: &[
-                BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
-                    ty: BindingType::Buffer {
-                        ty: BufferBindingType::Uniform,
-                        has_dynamic_offset: true,
-                        // TODO: change this to MeshUniform::std140_size_static once crevice fixes this!
-                        // Context: https://github.com/LPGhatguy/crevice/issues/29
-                        min_binding_size: Some(MeshUniform::min_size()),
-                    },
-                    count: None,
-                },
-                BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: ShaderStages::VERTEX_FRAGMENT,
-                    ty: BindingType::Buffer {
-                        ty: BufferBindingType::Uniform,
-                        has_dynamic_offset: true,
-                        min_binding_size: Some(TilemapUniformData::min_size()),
-                    },
-                    count: None,
-                },
-            ],
-            label: Some("tilemap_mesh_layout"),
-        });
-
-        #[cfg(not(feature = "atlas"))]
-        let material_layout = render_device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            entries: &[
-                BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: ShaderStages::FRAGMENT,
-                    ty: BindingType::Texture {
-                        multisampled: false,
-                        sample_type: TextureSampleType::Float { filterable: true },
-                        view_dimension: TextureViewDimension::D2Array,
-                    },
-                    count: None,
-                },
-                BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: ShaderStages::FRAGMENT,
-                    ty: BindingType::Sampler(SamplerBindingType::Filtering),
-                    count: None,
-                },
-            ],
-            label: Some("tilemap_material_layout"),
-        });
-
-        #[cfg(feature = "atlas")]
-        let material_layout = render_device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            entries: &[
-                BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: ShaderStages::FRAGMENT,
-                    ty: BindingType::Texture {
-                        multisampled: false,
-                        sample_type: TextureSampleType::Float { filterable: true },
-                        view_dimension: TextureViewDimension::D2,
-                    },
-                    count: None,
-                },
-                BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: ShaderStages::FRAGMENT,
-                    ty: BindingType::Sampler(SamplerBindingType::Filtering),
-                    count: None,
-                },
-            ],
-            label: Some("tilemap_material_layout"),
-        });
-
-        TilemapPipeline {
-            view_layout,
-            material_layout,
-            mesh_layout,
+        Self {
+            mesh2d_pipeline: Mesh2dPipeline::from_world(world),
+            chunk_batch_bind_groups: ChunkBatchBindGroupLayouts::from_world(world),
         }
     }
 }
-#[derive(Debug, Component, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct TilemapPipelineKey {
-    pub msaa: u32,
-    pub map_type: TilemapType,
-    pub hdr: bool,
-}
 
-impl SpecializedRenderPipeline for TilemapPipeline {
-    type Key = TilemapPipelineKey;
+impl SpecializedRenderPipeline for TilesChunkPipeline {
+    type Key = Mesh2dPipelineKey;
 
-    fn specialize(&self, key: Self::Key) -> RenderPipelineDescriptor {
-        let mut shader_defs = Vec::new();
-
-        #[cfg(feature = "atlas")]
-        shader_defs.push("ATLAS".into());
-
-        let mesh_string = match key.map_type {
-            TilemapType::Square { .. } => "SQUARE",
-            TilemapType::Isometric(coord_system) => match coord_system {
-                IsoCoordSystem::Diamond => "ISO_DIAMOND",
-                IsoCoordSystem::Staggered => "ISO_STAGGERED",
-            },
-            TilemapType::Hexagon(coord_system) => match coord_system {
-                HexCoordSystem::Column => "COLUMN_HEX",
-                HexCoordSystem::ColumnEven => "COLUMN_EVEN_HEX",
-                HexCoordSystem::ColumnOdd => "COLUMN_ODD_HEX",
-                HexCoordSystem::Row => "ROW_HEX",
-                HexCoordSystem::RowEven => "ROW_EVEN_HEX",
-                HexCoordSystem::RowOdd => "ROW_ODD_HEX",
-            },
+    fn specialize(
+        &self,
+        key: Self::Key,
+    ) -> bevy::render::render_resource::RenderPipelineDescriptor {
+        let format = match key.contains(Mesh2dPipelineKey::HDR) {
+            true => ViewTarget::TEXTURE_FORMAT_HDR,
+            false => TextureFormat::bevy_default(),
         };
-        shader_defs.push(mesh_string.into());
 
-        let formats = vec![
-            // Position
-            VertexFormat::Float32x4,
-            // Uv
-            VertexFormat::Float32x4,
-            // Color
-            VertexFormat::Float32x4,
-        ];
-
-        let vertex_layout =
-            VertexBufferLayout::from_vertex_formats(VertexStepMode::Vertex, formats);
+        let shader_defs = Vec::new();
 
         RenderPipelineDescriptor {
             vertex: VertexState {
-                shader: TILEMAP_SHADER_VERTEX.typed::<Shader>(),
-                entry_point: "vertex".into(),
+                shader: TILES_VERT,
+                entry_point: "vs_main".into(),
                 shader_defs: shader_defs.clone(),
-                buffers: vec![vertex_layout],
+                // We generate clip space triangles on the fly based on the implicit index buffer
+                buffers: vec![],
             },
             fragment: Some(FragmentState {
-                shader: TILEMAP_SHADER_FRAGMENT.typed::<Shader>(),
+                // Use our custom shader
+                shader: TILES_FRAG,
                 shader_defs,
-                entry_point: "fragment".into(),
+                entry_point: "fs_main".into(),
                 targets: vec![Some(ColorTargetState {
-                    format: if key.hdr {
-                        ViewTarget::TEXTURE_FORMAT_HDR
-                    } else {
-                        TextureFormat::bevy_default()
-                    },
-                    blend: Some(BlendState {
-                        color: BlendComponent {
-                            src_factor: BlendFactor::SrcAlpha,
-                            dst_factor: BlendFactor::OneMinusSrcAlpha,
-                            operation: BlendOperation::Add,
-                        },
-                        alpha: BlendComponent {
-                            src_factor: BlendFactor::One,
-                            dst_factor: BlendFactor::One,
-                            operation: BlendOperation::Add,
-                        },
-                    }),
+                    format,
+                    blend: Some(BlendState::ALPHA_BLENDING),
                     write_mask: ColorWrites::ALL,
                 })],
             }),
+            // Use the two standard uniforms for 2d meshes
             layout: vec![
-                self.view_layout.clone(),
-                self.mesh_layout.clone(),
-                self.material_layout.clone(),
+                // Bind group 0 is the view uniform
+                self.mesh2d_pipeline.view_layout.clone(),
+                // Bind group 1 are the map components
+                self.chunk_batch_bind_groups.map_layouts.clone(),
+                // Bind group 2 are the chunk components
+                self.chunk_batch_bind_groups.chunk_layouts.clone(),
             ],
+            push_constant_ranges: Vec::new(),
             primitive: PrimitiveState {
-                conservative: false,
-                cull_mode: Some(Face::Back),
                 front_face: FrontFace::Ccw,
-                polygon_mode: PolygonMode::Fill,
-                strip_index_format: None,
-                topology: PrimitiveTopology::TriangleList,
+                cull_mode: Some(Face::Back),
                 unclipped_depth: false,
+                polygon_mode: PolygonMode::Fill,
+                conservative: false,
+                topology: PrimitiveTopology::TriangleList,
+                strip_index_format: None,
             },
             depth_stencil: None,
             multisample: MultisampleState {
-                count: key.msaa,
+                count: key.msaa_samples(),
                 mask: !0,
                 alpha_to_coverage_enabled: false,
             },
-            label: Some("tilemap_pipeline".into()),
-            push_constant_ranges: vec![],
+            label: Some("tiles_pipeline".into()),
         }
     }
 }

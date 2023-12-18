@@ -1,4 +1,3 @@
-use aery::edges::CheckedDespawn;
 use bevy::ecs::{entity::Entity, system::Command, world::World};
 
 use crate::prelude::TileMapLabel;
@@ -32,7 +31,7 @@ where
     fn apply(self, world: &mut World) {
         let tile_id = take_chunk_despawn_tiles::<L, N>(world, self.chunk_c);
         if let Some(id) = tile_id {
-            CheckedDespawn(id).apply(world);
+            world.despawn(id);
         }
     }
 }

@@ -21,9 +21,12 @@ opt-level = 1
 opt-level = 3
 
 [workspace.dependencies]
-aery = "0.5.1"
-bevy = {version = "0.12", default-features = false}
+bevy = {version = "0.12.1", default-features = false}
 rstest = "0.18.2"
+bimap = "0.6.3"
+rand = "0.8.5"
+crossbeam = "0.8.3"
+dashmap = "5.5.3"
 
 [workspace.lints.clippy]
 type_complexity = "allow"
@@ -31,4 +34,4 @@ undocumented_unsafe_blocks = "deny"
 all = "deny"
 
 [workspace.lints.rust]
-unused_imports = "deny"
+unused_imports = "warn"
