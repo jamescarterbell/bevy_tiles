@@ -2,7 +2,7 @@ use std::ops::{Deref, DerefMut};
 
 use bevy::{
     ecs::{
-        query::{ReadOnlyWorldQuery, With, WorldQuery},
+        query::{QueryData, QueryFilter, With, WorldQuery},
         system::SystemParam,
     },
     prelude::Query,
@@ -26,8 +26,8 @@ use super::InChunk;
 pub struct TileQuery<'w, 's, L, Q, F = (), const N: usize = 2>
 where
     L: TileMapLabel + 'static,
-    Q: WorldQuery + 'static,
-    F: ReadOnlyWorldQuery + 'static,
+    Q: QueryData + 'static,
+    F: QueryFilter + 'static,
 {
     tile_q: Query<'w, 's, Q, (F, With<InChunk>, With<MapLabel<L>>)>,
     chunk_q: Query<'w, 's, &'static Chunk, (With<InMap>, With<MapLabel<L>>)>,
@@ -37,8 +37,8 @@ where
 impl<'w, 's, L, Q, F, const N: usize> Deref for TileQuery<'w, 's, L, Q, F, N>
 where
     L: TileMapLabel + 'static,
-    Q: WorldQuery + 'static,
-    F: ReadOnlyWorldQuery + 'static,
+    Q: QueryData + 'static,
+    F: QueryFilter + 'static,
 {
     type Target = Query<'w, 's, Q, (F, With<InChunk>, With<MapLabel<L>>)>;
 
@@ -50,8 +50,8 @@ where
 impl<'w, 's, L, Q, F, const N: usize> DerefMut for TileQuery<'w, 's, L, Q, F, N>
 where
     L: TileMapLabel + 'static,
-    Q: WorldQuery + 'static,
-    F: ReadOnlyWorldQuery + 'static,
+    Q: QueryData + 'static,
+    F: QueryFilter + 'static,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.tile_q
@@ -61,14 +61,14 @@ where
 impl<'w, 's, L, Q, F, const N: usize> TileQuery<'w, 's, L, Q, F, N>
 where
     L: TileMapLabel + 'static,
-    Q: WorldQuery + 'static,
-    F: ReadOnlyWorldQuery + 'static,
+    Q: QueryData + 'static,
+    F: QueryFilter + 'static,
 {
     /// Get's the readonly query item for the given tile.
     pub fn get_at(
         &self,
         tile_c: [isize; N],
-    ) -> Option<<<Q as WorldQuery>::ReadOnly as WorldQuery>::Item<'_>> {
+    ) -> Option<<<Q as QueryData>::ReadOnly as WorldQuery>::Item<'_>> {
         let map = self.map_q.get_single().ok()?;
         let chunk_c = calculate_chunk_coordinate(tile_c, L::CHUNK_SIZE);
         let chunk_e = map.chunks.get::<ChunkCoord<N>>(&chunk_c.into())?;
@@ -134,10 +134,8 @@ where
     }
 
     /// Get the readonly version of this query.
-    pub fn to_readonly(
-        &self,
-    ) -> TileQuery<'_, 's, L, <Q as WorldQuery>::ReadOnly, <F as WorldQuery>::ReadOnly, N> {
-        TileQuery::<L, <Q as WorldQuery>::ReadOnly, <F as WorldQuery>::ReadOnly, N> {
+    pub fn to_readonly(&self) -> TileQuery<'_, 's, L, <Q as QueryData>::ReadOnly, F, N> {
+        TileQuery::<L, <Q as QueryData>::ReadOnly, F, N> {
             tile_q: self.tile_q.to_readonly(),
             chunk_q: self.chunk_q.to_readonly(),
             map_q: self.map_q.to_readonly(),
@@ -212,8 +210,8 @@ where
 pub struct TileQueryIter<'w, 's, L, Q, F, const N: usize>
 where
     L: TileMapLabel + 'static,
-    Q: WorldQuery + 'static,
-    F: ReadOnlyWorldQuery + 'static,
+    Q: QueryData + 'static,
+    F: QueryFilter + 'static,
 {
     coord_iter: CoordIterator<N>,
     tile_q: &'w TileQuery<'w, 's, L, Q, F, N>,
@@ -222,8 +220,8 @@ where
 impl<'w, 's, L, Q, F, const N: usize> TileQueryIter<'w, 's, L, Q, F, N>
 where
     L: TileMapLabel + 'static,
-    Q: WorldQuery + 'static,
-    F: ReadOnlyWorldQuery + 'static,
+    Q: QueryData + 'static,
+    F: QueryFilter + 'static,
 {
     /// # Safety
     /// This iterator uses unchecked get's to get around some lifetime issue I don't understand yet.
@@ -244,10 +242,10 @@ where
 impl<'w, 's, L, Q, F, const N: usize> Iterator for TileQueryIter<'w, 's, L, Q, F, N>
 where
     L: TileMapLabel + 'static,
-    Q: WorldQuery + 'static,
-    F: ReadOnlyWorldQuery + 'static,
+    Q: QueryData + 'static,
+    F: QueryFilter + 'static,
 {
-    type Item = <<Q as WorldQuery>::ReadOnly as WorldQuery>::Item<'w>;
+    type Item = <<Q as QueryData>::ReadOnly as WorldQuery>::Item<'w>;
 
     #[allow(clippy::while_let_on_iterator)]
     fn next(&mut self) -> Option<Self::Item> {
@@ -275,8 +273,8 @@ where
 pub struct TileQueryIterMut<'w, 's, L, Q, F, const N: usize>
 where
     L: TileMapLabel + 'static,
-    Q: WorldQuery + 'static,
-    F: ReadOnlyWorldQuery + 'static,
+    Q: QueryData + 'static,
+    F: QueryFilter + 'static,
 {
     coord_iter: CoordIterator<N>,
     tile_q: &'w TileQuery<'w, 's, L, Q, F, N>,
@@ -285,8 +283,8 @@ where
 impl<'w, 's, L, Q, F, const N: usize> TileQueryIterMut<'w, 's, L, Q, F, N>
 where
     L: TileMapLabel + 'static,
-    Q: WorldQuery + 'static,
-    F: ReadOnlyWorldQuery + 'static,
+    Q: QueryData + 'static,
+    F: QueryFilter + 'static,
 {
     /// # Safety
     /// This iterator uses unchecked get's to get around some lifetime issue I don't understand yet.
@@ -307,8 +305,8 @@ where
 impl<'w, 's, L, Q, F, const N: usize> Iterator for TileQueryIterMut<'w, 's, L, Q, F, N>
 where
     L: TileMapLabel + 'static,
-    Q: WorldQuery + 'static,
-    F: ReadOnlyWorldQuery + 'static,
+    Q: QueryData + 'static,
+    F: QueryFilter + 'static,
 {
     type Item = <Q as WorldQuery>::Item<'w>;
 

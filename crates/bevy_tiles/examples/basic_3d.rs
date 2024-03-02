@@ -106,30 +106,30 @@ fn spawn(
 }
 
 fn move_character(
-    keyboard_input: Res<Input<KeyCode>>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
     mut commands: Commands,
     character: TileQuery<GameLayer, &TileCoord<3>, With<Character>, 3>,
     walls: TileQuery<GameLayer, (), With<Block>, 3>,
 ) {
     let mut tile_commands = commands.tiles::<GameLayer, 3>();
 
-    let mut x = if keyboard_input.just_pressed(KeyCode::A) {
+    let mut x = if keyboard_input.just_pressed(KeyCode::KeyA) {
         -1
     } else {
         0
     };
-    x += if keyboard_input.just_pressed(KeyCode::D) {
+    x += if keyboard_input.just_pressed(KeyCode::KeyD) {
         1
     } else {
         0
     };
 
-    let mut z = if keyboard_input.just_pressed(KeyCode::W) {
+    let mut z = if keyboard_input.just_pressed(KeyCode::KeyW) {
         -1
     } else {
         0
     };
-    z += if keyboard_input.just_pressed(KeyCode::S) {
+    z += if keyboard_input.just_pressed(KeyCode::KeyS) {
         1
     } else {
         0

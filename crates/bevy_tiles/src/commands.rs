@@ -84,7 +84,7 @@ where
 {
     /// Spawns a tile and returns a handle to the underlying entity.
     /// This will despawn any tile that already exists in this coordinate
-    pub fn spawn_tile<T>(&mut self, tile_c: [isize; N], bundle: T) -> EntityCommands<'w, 's, '_>
+    pub fn spawn_tile<T>(&mut self, tile_c: [isize; N], bundle: T) -> EntityCommands<'_>
     where
         T: Bundle + 'static,
     {
@@ -176,7 +176,7 @@ where
     }
 
     /// Manually spawn a chunk entity, note that this will overwrite and despawn existing chunks at this location.
-    pub fn spawn_chunk<T>(&mut self, chunk_c: [isize; N], bundle: T) -> EntityCommands<'w, 's, '_>
+    pub fn spawn_chunk<T>(&mut self, chunk_c: [isize; N], bundle: T) -> EntityCommands<'_>
     where
         T: Bundle + 'static,
     {
@@ -225,7 +225,7 @@ where
     }
 
     /// Spawn a new map, overwriting any old maps found.
-    pub fn spawn_map<T>(&mut self, bundle: T) -> EntityCommands<'w, 's, '_>
+    pub fn spawn_map<T>(&mut self, bundle: T) -> EntityCommands<'_>
     where
         T: Bundle + 'static,
     {
