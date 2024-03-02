@@ -80,14 +80,6 @@ impl<T: GpuArrayBufferable> GpuStorageBuffer<T> {
     pub fn insert(&mut self, index: usize, value: T) {
         *self.buffer.get_mut(index).unwrap() = value;
     }
-
-    // Fails if used on the wrong size buffer
-    /// SAFETY: Use carefully, this is to allow for parallel writes to sections of a buffer.
-    pub unsafe fn raw_insert(&self, index: usize, value: T) {
-        let spot: *const T = self.buffer.get(index).unwrap();
-        let spot: *mut T = spot as *mut T;
-        *spot = value;
-    }
 }
 
 impl<T: GpuArrayBufferable> GpuStorageBuffer<T>

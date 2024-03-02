@@ -31,15 +31,15 @@ pub struct SetMapBindGroup<const I: usize>;
 impl<const I: usize> RenderCommand<Transparent2d> for SetMapBindGroup<I> {
     type Param = ();
 
-    type ViewWorldQuery = ();
+    type ViewQuery = ();
 
-    type ItemWorldQuery = Read<ChunkBatchBindGroups>;
+    type ItemQuery = Read<ChunkBatchBindGroups>;
 
     #[inline]
     fn render<'w>(
         item: &Transparent2d,
         _view: (),
-        bind_groups: ROQueryItem<'w, Self::ItemWorldQuery>,
+        bind_groups: Option<ROQueryItem<'w, Self::ItemQuery>>,
         _: SystemParamItem<'w, '_, Self::Param>,
         pass: &mut TrackedRenderPass<'w>,
     ) -> RenderCommandResult {
@@ -51,6 +51,10 @@ impl<const I: usize> RenderCommand<Transparent2d> for SetMapBindGroup<I> {
             dynamic_offsets[offset_count] = dynamic_offset.get();
             offset_count += 1;
         }
+
+        let Some(bind_groups) = bind_groups else {
+            return RenderCommandResult::Failure;
+        };
 
         pass.set_bind_group(
             I,
@@ -65,15 +69,15 @@ pub struct SetChunkBindGroup<const I: usize>;
 impl<const I: usize> RenderCommand<Transparent2d> for SetChunkBindGroup<I> {
     type Param = ();
 
-    type ViewWorldQuery = ();
+    type ViewQuery = ();
 
-    type ItemWorldQuery = Read<ChunkBatchBindGroups>;
+    type ItemQuery = Read<ChunkBatchBindGroups>;
 
     #[inline]
     fn render<'w>(
         item: &Transparent2d,
         _view: (),
-        bind_groups: ROQueryItem<'w, Self::ItemWorldQuery>,
+        bind_groups: Option<ROQueryItem<'w, Self::ItemQuery>>,
         _: SystemParamItem<'w, '_, Self::Param>,
         pass: &mut TrackedRenderPass<'w>,
     ) -> RenderCommandResult {
@@ -85,6 +89,10 @@ impl<const I: usize> RenderCommand<Transparent2d> for SetChunkBindGroup<I> {
             dynamic_offsets[offset_count] = dynamic_offset.get();
             offset_count += 1;
         }
+
+        let Some(bind_groups) = bind_groups else {
+            return RenderCommandResult::Failure;
+        };
 
         pass.set_bind_group(
             I,
@@ -99,18 +107,22 @@ pub struct DrawChunkBatch;
 impl RenderCommand<Transparent2d> for DrawChunkBatch {
     type Param = ();
 
-    type ViewWorldQuery = ();
+    type ViewQuery = ();
 
-    type ItemWorldQuery = (Read<MapInfo>, Read<BatchSize>);
+    type ItemQuery = (Read<MapInfo>, Read<BatchSize>);
 
     #[inline]
     fn render<'w>(
         item: &Transparent2d,
-        _view: ROQueryItem<'w, Self::ViewWorldQuery>,
-        (map_info, batch_size): ROQueryItem<'w, Self::ItemWorldQuery>,
+        _view: ROQueryItem<'w, Self::ViewQuery>,
+        itemq: Option<ROQueryItem<'w, Self::ItemQuery>>,
         _: SystemParamItem<'w, '_, Self::Param>,
         pass: &mut TrackedRenderPass<'w>,
     ) -> RenderCommandResult {
+        let Some((map_info, batch_size)) = itemq else {
+            return RenderCommandResult::Failure;
+        };
+
         pass.draw(
             0..(map_info.chunk_size * map_info.chunk_size * 6),
             0..**batch_size,

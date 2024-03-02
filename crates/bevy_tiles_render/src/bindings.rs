@@ -244,15 +244,15 @@ impl FromWorld for ChunkBatchBindGroupLayouts {
             .get_resource::<RenderDevice>()
             .expect("No render device found!");
 
-        let map_layouts = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            label: Some("bevy_tiles_map_bind_group"),
-            entries: &MapBatchBuffer::layout_entries(),
-        });
+        let map_layouts = device.create_bind_group_layout(
+            Some("bevy_tiles_map_bind_group"),
+            &MapBatchBuffer::layout_entries(),
+        );
 
-        let chunk_layouts = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            label: Some("bevy_tiles_chunk_bind_group"),
-            entries: &ChunkBatchBuffer::layout_entries(),
-        });
+        let chunk_layouts = device.create_bind_group_layout(
+            Some("bevy_tiles_chunk_bind_group"),
+            &ChunkBatchBuffer::layout_entries(),
+        );
 
         Self {
             map_layouts,
