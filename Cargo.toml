@@ -2,11 +2,10 @@
 resolver = "2"
 members=[
     "crates/bevy_tiles",
-    "crates/bevy_tiles_render",
 ]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.0.0-dev1"
 edition = "2021"
 authors = ["James Bell <jamescarterbell@gmail.com>"]
 license = "MIT"
@@ -21,7 +20,7 @@ opt-level = 1
 opt-level = 3
 
 [workspace.dependencies]
-bevy = {version = "0.12.1", default-features = false}
+bevy = {version = "0.13.0", default-features = false}
 rstest = "0.18.2"
 bimap = "0.6.3"
 rand = "0.8.5"

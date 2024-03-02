@@ -6,10 +6,7 @@ mod tile_query;
 pub use tile_query::*;
 
 /// The index of a tile in a given chunk.
-/// # Note
-/// Manually updating this value, adding it, or removing it from an entity may
-/// cause issues, please only mutate tile information via commands.
-#[derive(Component, Debug)]
+#[derive(Debug)]
 pub struct TileIndex(usize);
 
 impl From<usize> for TileIndex {
@@ -27,10 +24,7 @@ impl Deref for TileIndex {
 }
 
 /// The coordinate of a tile in a given map.
-/// # Note
-/// Manually updating this value, adding it, or removing it from an entity may
-/// cause issues, please only mutate tile information via commands.
-#[derive(Component, Debug)]
+#[derive(Debug)]
 pub struct TileCoord<const N: usize = 2>([isize; N]);
 
 impl<const N: usize> TileCoord<N> {

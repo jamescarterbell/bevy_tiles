@@ -74,7 +74,7 @@ fn add_damage(
     mut blocks: TileQuery<GameLayer, (Entity, Option<&mut Damage>), With<Block>>,
     windows: Query<&Window, With<PrimaryWindow>>,
     camera: Query<(&Camera, &GlobalTransform)>,
-    buttons: Res<Input<MouseButton>>,
+    buttons: Res<ButtonInput<MouseButton>>,
 ) {
     let (cam, cam_t) = camera.single();
     let cursor_pos = windows
