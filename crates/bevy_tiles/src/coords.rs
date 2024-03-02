@@ -1,5 +1,3 @@
-use bevy::log::debug;
-
 /// Calculate the coordinate of a chunk from a given tile coordinate and chunk size
 #[inline]
 pub fn calculate_chunk_coordinate<const N: usize>(

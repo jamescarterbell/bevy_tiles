@@ -22,7 +22,7 @@ pub mod tiles;
 
 /// Provides most of what you need to get started.
 pub mod prelude {
-    pub use crate::commands::{TileCommandExt, TileCommands};
+    pub use crate::commands::{TileCommandExt, TileMapCommands};
 
     pub use crate::chunks::*;
     pub use crate::coords::*;
@@ -32,12 +32,8 @@ pub mod prelude {
 }
 
 /// Adds Tiles dependencies to the App.
-/// # Note
-/// If you are using [Aery](https://crates.io/crates/aery), add it to the App before this plugin, or just add this plugin.
-/// This plugin will add Aery if it's not in the app, since it is a unique plugin,
-/// having multiple will panic.
 pub struct TilesPlugin;
 
 impl Plugin for TilesPlugin {
-    fn build(&self, app: &mut bevy::prelude::App) {}
+    fn build(&self, _app: &mut bevy::prelude::App) {}
 }
