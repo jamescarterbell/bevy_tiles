@@ -63,13 +63,13 @@ fn spawn(mut commands: Commands) {
 
 fn change_map(mut commands: Commands) {
     let mut rng = rand::thread_rng();
-    let changes = rng.gen_range(500..1000);
+    let changes = rng.gen_range(0..1000);
     let mut tile_commands = commands.tiles::<GameLayer, 2>();
 
     let spawn = rng.gen_bool(0.5);
 
     let tiles = Vec::from_iter(
-        repeat_with(|| [rng.gen_range(-1000..1000), rng.gen_range(-1000..1000)]).take(changes),
+        repeat_with(|| [rng.gen_range(-500..500), rng.gen_range(-500..500)]).take(changes),
     );
 
     if spawn {

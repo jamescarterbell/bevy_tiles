@@ -12,10 +12,9 @@ Supports:
 
 # How it Works
 
-In `bevy_tiles`, each tile is automatically part of a chunk.  Each frame, if a tile in a chunk has changed,
-we can regenerate the render mesh for all the tiles in a chunk, stick it on the chunk, then send it to the render app.
-This allows for more efficient rendering, and has the added benefit of letting you remove a chunk from the map, but keeping
-the render mesh, allowing for higher performance in large static chunk scenarios.
+In `bevy_tiles`, each tile is automatically part of a chunk.  New and updated chunk information is copied over to the render world each frame.
+All chunks being rendered have their information uploaded to the GPU, and multiple chunks are put together into batch draw calls.  No mesh is used
+for these draw calls, instead the mesh is generated in the vertex shader, and discarded in the fragment shader if no tile exists there.
 
 # Why use this over X?
 
