@@ -1,6 +1,5 @@
 {
     "rust-analyzer.linkedProjects": [
-        ".\\crates\\bevy_tiles_render\\Cargo.toml",
         ".\\crates\\bevy_tiles\\Cargo.toml"
     ]
 }

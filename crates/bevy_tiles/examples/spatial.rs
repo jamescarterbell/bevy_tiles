@@ -71,7 +71,7 @@ fn spawn(mut commands: Commands, asset_server: Res<AssetServer>) {
 
 fn add_damage(
     mut commands: Commands,
-    mut blocks: TileQuery<GameLayer, (Entity, Option<&mut Damage>), With<Block>>,
+    mut blocks: TileMapQuery<(Entity, Option<&mut Damage>), With<Block>>,
     windows: Query<&Window, With<PrimaryWindow>>,
     camera: Query<(&Camera, &GlobalTransform)>,
     buttons: Res<ButtonInput<MouseButton>>,
@@ -130,7 +130,7 @@ fn check_damage(
 }
 
 fn sync_tile_transforms(
-    mut tiles: TileQuery<GameLayer, (&TileCoord, &mut Transform), Changed<TileCoord>>,
+    mut tiles: TileMapQuery<GameLayer, (&TileCoord, &mut Transform), Changed<TileCoord>>,
 ) {
     for (tile_c, mut transform) in tiles.iter_mut() {
         transform.translation.x = tile_c[0] as f32 * 16.0;

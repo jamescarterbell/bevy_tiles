@@ -22,7 +22,7 @@ pub mod tiles;
 
 /// Provides most of what you need to get started.
 pub mod prelude {
-    pub use crate::commands::{TileCommandExt, TileCommands};
+    pub use crate::commands::{TileCommandExt, TileMapCommands};
 
     pub use crate::chunks::*;
     pub use crate::coords::*;

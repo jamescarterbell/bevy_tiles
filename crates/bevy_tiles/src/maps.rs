@@ -5,26 +5,11 @@ use bevy::{
     utils::HashMap,
 };
 
-use crate::chunks::ChunkCoord;
-
-/// Adds type level info on how a Tile Map should be treated.
-pub trait TileMapLabel: Send + Sync + 'static {
-    /// How many tiles per dimension a chunk in this map extends.
-    const CHUNK_SIZE: usize;
-}
-
-/// Marks an entity as being part of the tilemap.
-/// # Note
-/// Manually updating this value, adding it, or removing it from an entity may
-/// cause issues, please only mutate map information via commands.
-#[derive(Component)]
-pub struct MapLabel<L>(PhantomData<L>);
-
-impl<L> Default for MapLabel<L> {
-    fn default() -> Self {
-        Self(Default::default())
-    }
-}
+use crate::{
+    chunks::ChunkCoord,
+    prelude::{calculate_chunk_coordinate, calculate_tile_coordinate},
+    tiles::TileCoord,
+};
 
 /// Holds handles to all the chunks in a map.
 /// # Note
@@ -32,9 +17,9 @@ impl<L> Default for MapLabel<L> {
 /// cause issues, please only mutate map information via commands.
 #[derive(Component)]
 pub struct TileMap<const N: usize = 2> {
-    pub(crate) chunks: HashMap<ChunkCoord<N>, Entity>,
+    chunks: HashMap<ChunkCoord<N>, Entity>,
     /// The size of a chunk in one direction.
-    pub chunk_size: usize,
+    chunk_size: usize,
 }
 
 impl<const N: usize> TileMap<N> {
@@ -45,8 +30,30 @@ impl<const N: usize> TileMap<N> {
         }
     }
 
-    /// Get readonly access to the chunk table
+    /// Gets the chunk entity from a tile coordinate.
+    pub fn get_from_tile(&self, tile_c: TileCoord<N>) -> Option<Entity> {
+        let chunk_c = calculate_chunk_coordinate(tile_c.0, self.chunk_size);
+        self.chunks
+            .get::<ChunkCoord<N>>(&ChunkCoord::<N>(chunk_c))
+            .cloned()
+    }
+
+    /// Gets the chunk entity from a chunk coordinate.
+    pub fn get_from_chunk(&self, chunk_c: ChunkCoord<N>) -> Option<Entity> {
+        self.chunks.get::<ChunkCoord<N>>(&chunk_c).cloned()
+    }
+
+    /// Get readonly access to the chunk table.
     pub fn get_chunks(&self) -> &HashMap<ChunkCoord<N>, Entity> {
         &self.chunks
+    }
+
+    pub(crate) fn get_chunks_mut(&mut self) -> &mut HashMap<ChunkCoord<N>, Entity> {
+        &mut self.chunks
+    }
+
+    /// Get the size of chunks in this tilemap.
+    pub fn get_chunk_size(&self) -> usize {
+        self.chunk_size
     }
 }

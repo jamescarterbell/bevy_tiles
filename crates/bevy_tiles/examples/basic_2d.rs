@@ -17,18 +17,15 @@ struct Block;
 #[derive(Component)]
 struct Character;
 
+#[derive(Component)]
 struct GameLayer;
-
-impl TileMapLabel for GameLayer {
-    const CHUNK_SIZE: usize = 16;
-}
 
 fn spawn(mut commands: Commands, asset_server: Res<AssetServer>) {
     let block = asset_server.load("block.png");
     let character = asset_server.load("character.png");
 
     commands.spawn(Camera2dBundle::default());
-    let mut tile_commands = commands.tiles::<GameLayer, 2>();
+    let mut map_id = commands.spawn_map::<GameLayer, 2>(16, GameLayer).id();
 
     let sprite_bundle = SpriteBundle {
         texture: block,
@@ -36,7 +33,8 @@ fn spawn(mut commands: Commands, asset_server: Res<AssetServer>) {
     };
 
     // spawn a 10 * 10 room
-    tile_commands.spawn_tile_batch(
+    commands.spawn_tile_batch(
+        map_id,
         CoordIterator::new([-5, 5], [5, 5])
             .chain(CoordIterator::new([-5, -5], [5, -5]))
             .chain(CoordIterator::new([5, -4], [5, 4]))
@@ -45,7 +43,8 @@ fn spawn(mut commands: Commands, asset_server: Res<AssetServer>) {
     );
 
     // spawn a player
-    tile_commands.spawn_tile(
+    commands.spawn_tile(
+        map_id,
         [0, 0],
         (
             Character,
@@ -60,10 +59,12 @@ fn spawn(mut commands: Commands, asset_server: Res<AssetServer>) {
 fn move_character(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mut commands: Commands,
-    character: TileQuery<GameLayer, &TileCoord, With<Character>>,
-    walls: TileQuery<GameLayer, (), With<Block>>,
+    map: Query<Entity, With<GameLayer>>,
+    character: Query<&TileCoord, With<Character>>,
+    walls_maps: TileMapQuery<(), With<Block>>,
 ) {
-    let mut tile_commands = commands.tiles::<GameLayer, 2>();
+    let map_id = map.single();
+    let walls = walls_maps.get_map(map_id).unwrap();
 
     let mut x = if keyboard_input.just_pressed(KeyCode::KeyA) {
         -1
@@ -92,13 +93,11 @@ fn move_character(
     let new_coord = [char_c[0] + x, char_c[1] + y];
 
     if (x != 0 || y != 0) && walls.get_at(new_coord).is_none() {
-        tile_commands.move_tile(**char_c, new_coord);
+        commands.move_tile(map_id, **char_c, new_coord);
     }
 }
 
-fn sync_tile_transforms(
-    mut tiles: TileQuery<GameLayer, (&TileCoord, &mut Transform), Changed<TileCoord>>,
-) {
+fn sync_tile_transforms(mut tiles: Query<(&TileCoord, &mut Transform), Changed<TileCoord>>) {
     for (tile_c, mut transform) in tiles.iter_mut() {
         transform.translation.x = tile_c[0] as f32 * 16.0;
         transform.translation.y = tile_c[1] as f32 * 16.0;

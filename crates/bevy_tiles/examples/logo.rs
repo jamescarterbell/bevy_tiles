@@ -57,7 +57,7 @@ eeeee  eeee e    e e    e       eeee8 eeeee e     eeee  eeeee
 }
 
 fn sync_tile_transforms(
-    mut tiles: TileQuery<GameLayer, (&TileCoord, &mut Transform), Changed<TileCoord>>,
+    mut tiles: TileMapQuery<GameLayer, (&TileCoord, &mut Transform), Changed<TileCoord>>,
 ) {
     for (tile_c, mut transform) in tiles.iter_mut() {
         transform.translation.x = tile_c[0] as f32 * 16.0;

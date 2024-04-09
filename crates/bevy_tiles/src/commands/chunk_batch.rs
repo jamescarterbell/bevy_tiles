@@ -1,24 +1,20 @@
 use bevy::ecs::{bundle::Bundle, entity::Entity, system::Command, world::World};
 
-use crate::prelude::TileMapLabel;
-
 use super::{insert_chunk_batch, take_chunk_batch_despawn_tiles};
 
-pub struct SpawnChunkBatch<L, F, B, IC, const N: usize = 2>
+pub struct SpawnChunkBatch<F, B, IC, const N: usize = 2>
 where
-    L: TileMapLabel + Send + 'static,
     F: Fn([isize; N]) -> B + Send + 'static,
     B: Bundle + Send + 'static,
     IC: IntoIterator<Item = [isize; N]> + Send + 'static,
 {
+    pub map_id: Entity,
     pub chunk_cs: IC,
     pub bundle_f: F,
-    pub label: std::marker::PhantomData<L>,
 }
 
-impl<L, F, B, IC, const N: usize> Command for SpawnChunkBatch<L, F, B, IC, N>
+impl<F, B, IC, const N: usize> Command for SpawnChunkBatch<F, B, IC, N>
 where
-    L: TileMapLabel + Send + 'static,
     F: Fn([isize; N]) -> B + Send + 'static,
     B: Bundle + Send + 'static,
     IC: IntoIterator<Item = [isize; N]> + Send + 'static,
@@ -35,26 +31,24 @@ where
             .zip(world.spawn_batch(bundles))
             .collect::<Vec<([isize; N], Entity)>>();
 
-        insert_chunk_batch::<L, N>(world, chunks);
+        insert_chunk_batch::<N>(world, self.map_id, chunks);
     }
 }
 
-pub struct DespawnChunkBatch<L, IC, const N: usize = 2>
+pub struct DespawnChunkBatch<IC, const N: usize = 2>
 where
-    L: TileMapLabel + Send + 'static,
     IC: IntoIterator<Item = [isize; N]> + Send + 'static,
 {
+    pub map_id: Entity,
     pub chunk_cs: IC,
-    pub label: std::marker::PhantomData<L>,
 }
 
-impl<L, IC, const N: usize> Command for DespawnChunkBatch<L, IC, N>
+impl<IC, const N: usize> Command for DespawnChunkBatch<IC, N>
 where
-    L: TileMapLabel + Send + 'static,
     IC: IntoIterator<Item = [isize; N]> + Send + 'static,
 {
     fn apply(self, world: &mut World) {
-        for (_, tile_id) in take_chunk_batch_despawn_tiles::<L, N>(world, self.chunk_cs) {
+        for (_, tile_id) in take_chunk_batch_despawn_tiles::<N>(world, self.map_id, self.chunk_cs) {
             world.despawn(tile_id);
         }
     }

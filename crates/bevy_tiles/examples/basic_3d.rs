@@ -108,8 +108,8 @@ fn spawn(
 fn move_character(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mut commands: Commands,
-    character: TileQuery<GameLayer, &TileCoord<3>, With<Character>, 3>,
-    walls: TileQuery<GameLayer, (), With<Block>, 3>,
+    character: TileMapQuery<GameLayer, &TileCoord<3>, With<Character>, 3>,
+    walls: TileMapQuery<GameLayer, (), With<Block>, 3>,
 ) {
     let mut tile_commands = commands.tiles::<GameLayer, 3>();
 
@@ -156,7 +156,7 @@ fn move_character(
 
 fn sync_tile_transforms(
     // Important, you have to put the 3 in all these places at the moment!!!
-    mut tiles: TileQuery<GameLayer, (&TileCoord<3>, &mut Transform), Changed<TileCoord<3>>, 3>,
+    mut tiles: TileMapQuery<GameLayer, (&TileCoord<3>, &mut Transform), Changed<TileCoord<3>>, 3>,
 ) {
     for (tile_c, mut transform) in tiles.iter_mut() {
         transform.translation.x = tile_c[0] as f32;

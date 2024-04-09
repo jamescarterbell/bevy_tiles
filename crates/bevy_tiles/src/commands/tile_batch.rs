@@ -4,25 +4,21 @@ use bevy::{
 };
 use bimap::BiMap;
 
-use crate::prelude::TileMapLabel;
-
 use super::{insert_tile_batch, take_tile_batch};
 
-pub struct SpawnTileBatch<L, F, B, IC, const N: usize = 2>
+pub struct SpawnTileBatch<F, B, IC, const N: usize = 2>
 where
-    L: TileMapLabel + Send + 'static,
     F: Fn([isize; N]) -> B + Send + 'static,
     B: Bundle + Send + 'static,
     IC: IntoIterator<Item = [isize; N]> + Send + 'static,
 {
+    pub map_id: Entity,
     pub tile_cs: IC,
     pub bundle_f: F,
-    pub label: std::marker::PhantomData<L>,
 }
 
-impl<L, F, B, IC, const N: usize> Command for SpawnTileBatch<L, F, B, IC, N>
+impl<F, B, IC, const N: usize> Command for SpawnTileBatch<F, B, IC, N>
 where
-    L: TileMapLabel + Send + 'static,
     F: Fn([isize; N]) -> B + Send + 'static,
     B: Bundle + Send + 'static,
     IC: IntoIterator<Item = [isize; N]> + Send + 'static,
@@ -39,43 +35,39 @@ where
             .zip(world.spawn_batch(bundles))
             .collect::<Vec<([isize; N], Entity)>>();
 
-        insert_tile_batch::<L, N>(world, tiles);
+        insert_tile_batch::<N>(world, self.map_id, tiles);
     }
 }
 
-pub struct DespawnTileBatch<L, IC, const N: usize = 2>
+pub struct DespawnTileBatch<IC, const N: usize = 2>
 where
-    L: TileMapLabel + Send + 'static,
     IC: IntoIterator<Item = [isize; N]> + Send + 'static,
 {
+    pub map_id: Entity,
     pub tile_cs: IC,
-    pub label: std::marker::PhantomData<L>,
 }
 
-impl<L, IC, const N: usize> Command for DespawnTileBatch<L, IC, N>
+impl<IC, const N: usize> Command for DespawnTileBatch<IC, N>
 where
-    L: TileMapLabel + Send + 'static,
     IC: IntoIterator<Item = [isize; N]> + Send + 'static,
 {
     fn apply(self, world: &mut World) {
-        for (_, tile_id) in take_tile_batch::<L, N>(world, self.tile_cs) {
+        for (_, tile_id) in take_tile_batch::<N>(world, self.map_id, self.tile_cs) {
             world.despawn(tile_id);
         }
     }
 }
 
-pub struct MoveTileBatch<L, IC, const N: usize = 2>
+pub struct MoveTileBatch<IC, const N: usize = 2>
 where
-    L: TileMapLabel + Send + 'static,
     IC: IntoIterator<Item = ([isize; N], [isize; N])> + Send + 'static,
 {
+    pub map_id: Entity,
     pub tile_cs: IC,
-    pub label: std::marker::PhantomData<L>,
 }
 
-impl<L, IC, const N: usize> Command for MoveTileBatch<L, IC, N>
+impl<IC, const N: usize> Command for MoveTileBatch<IC, N>
 where
-    L: TileMapLabel + Send + 'static,
     IC: IntoIterator<Item = ([isize; N], [isize; N])> + Send + 'static,
 {
     fn apply(self, world: &mut World) {
@@ -87,27 +79,28 @@ where
             .into_iter()
             .collect::<HashMap<[isize; N], [isize; N]>>();
 
-        let removed =
-            take_tile_batch::<L, N>(world, tile_cs.keys().cloned().collect::<Vec<[isize; N]>>())
-                .into_iter()
-                .map(|(tile_c, tile_id)| (tile_cs.remove(&tile_c).expect(ERR_MESSAGE), tile_id));
+        let removed = take_tile_batch::<N>(
+            world,
+            self.map_id,
+            tile_cs.keys().cloned().collect::<Vec<[isize; N]>>(),
+        )
+        .into_iter()
+        .map(|(tile_c, tile_id)| (tile_cs.remove(&tile_c).expect(ERR_MESSAGE), tile_id));
 
-        insert_tile_batch::<L, N>(world, removed);
+        insert_tile_batch::<N>(world, self.map_id, removed);
     }
 }
 
-pub struct SwapTileBatch<L, IC, const N: usize = 2>
+pub struct SwapTileBatch<IC, const N: usize = 2>
 where
-    L: TileMapLabel + Send + 'static,
     IC: IntoIterator<Item = ([isize; N], [isize; N])> + Send + 'static,
 {
+    pub map_id: Entity,
     pub tile_cs: IC,
-    pub label: std::marker::PhantomData<L>,
 }
 
-impl<L, IC, const N: usize> Command for SwapTileBatch<L, IC, N>
+impl<IC, const N: usize> Command for SwapTileBatch<IC, N>
 where
-    L: TileMapLabel + Send + 'static,
     IC: IntoIterator<Item = ([isize; N], [isize; N])> + Send + 'static,
 {
     fn apply(self, world: &mut World) {
@@ -119,20 +112,22 @@ where
             .into_iter()
             .collect::<BiMap<[isize; N], [isize; N]>>();
 
-        let removed_left = take_tile_batch::<L, N>(
+        let removed_left = take_tile_batch::<N>(
             world,
+            self.map_id,
             tile_cs.left_values().cloned().collect::<Vec<[isize; N]>>(),
         )
         .into_iter()
         .map(|(tile_c, tile_id)| (*tile_cs.get_by_left(&tile_c).expect(ERR_MESSAGE), tile_id));
 
-        let removed_right = take_tile_batch::<L, N>(
+        let removed_right = take_tile_batch::<N>(
             world,
+            self.map_id,
             tile_cs.right_values().cloned().collect::<Vec<[isize; N]>>(),
         )
         .into_iter()
         .map(|(tile_c, tile_id)| (*tile_cs.get_by_right(&tile_c).expect(ERR_MESSAGE), tile_id));
 
-        insert_tile_batch::<L, N>(world, removed_left.chain(removed_right));
+        insert_tile_batch::<N>(world, self.map_id, removed_left.chain(removed_right));
     }
 }
