@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use std::ops::Deref;
 
 mod tile_query;
 

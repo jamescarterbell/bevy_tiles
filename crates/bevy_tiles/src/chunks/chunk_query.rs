@@ -1,7 +1,4 @@
-use std::{
-    marker::PhantomData,
-    ops::{Deref, DerefMut},
-};
+use std::ops::{Deref, DerefMut};
 
 use bevy::{
     ecs::{
@@ -16,7 +13,7 @@ use bevy::{
 use crate::{
     chunks::ChunkCoord,
     maps::TileMap,
-    prelude::{Chunk, InMap},
+    prelude::{Chunk, CoordIterator, InMap},
 };
 
 /// Used to query chunks from any tile map.
@@ -41,7 +38,7 @@ where
     pub fn get_map(
         &self,
         map_id: Entity,
-    ) -> Option<ChunkQuery<BorrowedChunkQueries<'_, 'w, 's, Q, F, N>>> {
+    ) -> Option<ChunkQuery<&'_ Query<'w, 's, Q, (F, With<InMap>, With<Chunk>)>, N>> {
         let map = self.map_q.get(map_id).ok()?;
 
         Some(ChunkQuery {
@@ -54,7 +51,7 @@ where
     pub fn get_map_mut(
         &mut self,
         map_id: Entity,
-    ) -> Option<ChunkQuery<MutableBorrowedChunkQueries<'_, 'w, 's, Q, F, N>>> {
+    ) -> Option<ChunkQuery<&'_ mut Query<'w, 's, Q, (F, With<InMap>, With<Chunk>)>, N>> {
         let map = self.map_q.get(map_id).ok()?;
 
         Some(ChunkQuery {
@@ -67,20 +64,14 @@ where
 /// Used to query chunks from a tile map.
 /// This query also implicitly queries maps
 /// in order to properly resolve chunks.
-pub struct ChunkQuery<'a, W>
-where
-    W: BorrowedChunkQueryTypes<'a>,
-{
-    chunk_q: W::ChunkQuery,
-    map: W::Map,
+pub struct ChunkQuery<'a, C, const N: usize> {
+    chunk_q: C,
+    map: &'a TileMap<N>,
 }
 
-impl<'a, 'w: 'a, 's: 'a, Q, F, W, const N: usize> ChunkQuery<'a, W>
+impl<'a, 'w: 'a, 's: 'a, Q, F, C, const N: usize> ChunkQuery<'a, C, N>
 where
-    W: BorrowedChunkQueryTypes<'a>,
-    <W as BorrowedChunkQueryTypes<'a>>::ChunkQuery:
-        Deref<Target = Query<'w, 's, Q, (F, With<InMap>, With<Chunk>)>>,
-    <W as BorrowedChunkQueryTypes<'a>>::Map: Deref<Target = TileMap<N>>,
+    C: Deref<Target = Query<'w, 's, Q, (F, With<InMap>, With<Chunk>)>>,
     Q: QueryData + 'static,
     F: QueryFilter + 'static,
 {
@@ -112,50 +103,23 @@ where
         self.chunk_q.get_unchecked(chunk_id).ok()
     }
 
-    // /// Iterate over all the chunks in a given space, starting at `corner_1`
-    // /// inclusive over `corner_2`
-    // /// # Note
-    // /// Coordinates are for these calls are in chunk coordinates.
-    // #[inline]
-    // pub fn iter_in(
-    //     &self,
-    //     corner_1: [isize; N],
-    //     corner_2: [isize; N],
-    // ) -> ChunkQueryIter<'_, 's, Q, F, N> {
-    //     ChunkQueryIter::new(self, corner_1, corner_2)
-    // }
-
-    // /// Iterate over all the chunks in a given space, starting at `corner_1`
-    // /// inclusive over `corner_2`.
-    // /// # Note
-    // /// Coordinates are for these calls are in chunk coordinates.
-    // #[inline]
-    // pub fn iter_in_mut(
-    //     &mut self,
-    //     corner_1: [isize; N],
-    //     corner_2: [isize; N],
-    // ) -> ChunkQueryIterMut<'_, 's, Q, F, N> {
-    //     // SAFETY: Use case is safe since this is the mut version and the function signature
-    //     // stops us from borrowing this mutably twice
-    //     unsafe { ChunkQueryIterMut::new(self, corner_1, corner_2) }
-    // }
-
-    // /// Get the readonly version of this query.
-    // #[inline]
-    // pub fn to_readonly(&self) -> ChunkMapQuery<'_, 's, <Q as QueryData>::ReadOnly, F, N> {
-    //     ChunkMapQuery::<<Q as QueryData>::ReadOnly, F, N> {
-    //         chunk_q: self.chunk_q.to_readonly(),
-    //         map: self.map,
-    //     }
-    // }
+    /// Iterate over all the chunks in a given space, starting at `corner_1`
+    /// inclusive over `corner_2`
+    /// # Note
+    /// Coordinates are for these calls are in chunk coordinates.
+    #[inline]
+    pub fn iter_in(
+        &self,
+        corner_1: [isize; N],
+        corner_2: [isize; N],
+    ) -> ChunkQueryIter<'_, 'a, C, N> {
+        ChunkQueryIter::new(self, corner_1, corner_2)
+    }
 }
 
-impl<'a, 'w: 'a, 's: 'a, Q, F, W, const N: usize> ChunkQuery<'a, W>
+impl<'a, 'w: 'a, 's: 'a, Q, F, C, const N: usize> ChunkQuery<'a, C, N>
 where
-    W: BorrowedChunkQueryTypes<'a>,
-    <W as BorrowedChunkQueryTypes<'a>>::ChunkQuery:
-        DerefMut<Target = Query<'w, 's, Q, (F, With<InMap>, With<Chunk>)>>,
-    <W as BorrowedChunkQueryTypes<'a>>::Map: Deref<Target = TileMap<N>>,
+    C: DerefMut<Target = Query<'w, 's, Q, (F, With<InMap>, With<Chunk>)>>,
     Q: QueryData + 'static,
     F: QueryFilter + 'static,
 {
@@ -168,169 +132,93 @@ where
 
         self.chunk_q.get_mut(chunk_id).ok()
     }
+
+    /// Iterate over all the chunks in a given space, starting at `corner_1`
+    /// inclusive over `corner_2`.
+    /// # Note
+    /// Coordinates are for these calls are in chunk coordinates.
+    #[inline]
+    pub fn iter_in_mut(
+        &mut self,
+        corner_1: [isize; N],
+        corner_2: [isize; N],
+    ) -> ChunkQueryIterMut<'_, 'a, C, N> {
+        ChunkQueryIterMut::new(self, corner_1, corner_2)
+    }
 }
 
-/// Borrowed types from a [ChunkQuery] needed to construct a [ChunkMapQuery]
-pub struct BorrowedChunkQueries<'a, 'w: 'a, 's: 'a, Q, F, const N: usize>
+/// Iterates over a range of chunks using chunk coordinates.
+pub struct ChunkQueryIter<'i, 'a, C, const N: usize> {
+    coord_iter: CoordIterator<N>,
+    chunk_q: &'i ChunkQuery<'a, C, N>,
+}
+
+impl<'i, 'a, C, const N: usize> ChunkQueryIter<'i, 'a, C, N> {
+    fn new(chunk_q: &'i ChunkQuery<'a, C, N>, corner_1: [isize; N], corner_2: [isize; N]) -> Self {
+        Self {
+            chunk_q,
+            coord_iter: CoordIterator::new(corner_1, corner_2),
+        }
+    }
+}
+
+impl<'i, 'a: 'i, 'w: 'a, 's: 'a, Q, F, C, const N: usize> Iterator for ChunkQueryIter<'i, 'a, C, N>
 where
+    C: Deref<Target = Query<'w, 's, Q, (F, With<InMap>, With<Chunk>)>>,
     Q: QueryData + 'static,
     F: QueryFilter + 'static,
 {
-    phantom: PhantomData<(&'a Q, &'w F, &'s Q)>,
+    type Item = <<Q as QueryData>::ReadOnly as WorldQuery>::Item<'i>;
+
+    #[allow(clippy::while_let_on_iterator)]
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(target) = self.coord_iter.next() {
+            let tile = self.chunk_q.get_at(target);
+            if tile.is_some() {
+                return tile;
+            }
+        }
+
+        None
+    }
 }
 
-impl<'a, 'w: 'a, 's: 'a, Q, F, const N: usize> BorrowedChunkQueryTypes<'a>
-    for BorrowedChunkQueries<'a, 'w, 's, Q, F, N>
+/// Iterates over a range of chunks using chunk coordinates.
+pub struct ChunkQueryIterMut<'i, 'a, C, const N: usize> {
+    coord_iter: CoordIterator<N>,
+    chunk_q: &'i ChunkQuery<'a, C, N>,
+}
+
+impl<'i, 'a, C, const N: usize> ChunkQueryIterMut<'i, 'a, C, N> {
+    fn new(chunk_q: &'i ChunkQuery<'a, C, N>, corner_1: [isize; N], corner_2: [isize; N]) -> Self {
+        Self {
+            chunk_q,
+            coord_iter: CoordIterator::new(corner_1, corner_2),
+        }
+    }
+}
+
+impl<'i, 'a: 'i, 'w: 'a, 's: 'a, Q, F, C, const N: usize> Iterator
+    for ChunkQueryIterMut<'i, 'a, C, N>
 where
+    C: DerefMut<Target = Query<'w, 's, Q, (F, With<InMap>, With<Chunk>)>>,
     Q: QueryData + 'static,
     F: QueryFilter + 'static,
 {
-    type ChunkQuery = &'a Query<'w, 's, Q, (F, With<InMap>, With<Chunk>)>;
+    type Item = <Q as WorldQuery>::Item<'i>;
 
-    type Map = &'a TileMap<N>;
+    #[allow(clippy::while_let_on_iterator)]
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(target) = self.coord_iter.next() {
+            // SAFETY: Safe as long as the constructor requires a mutable reference
+            let tile = unsafe { self.chunk_q.get_at_unchecked(target) };
+            if tile.is_some() {
+                return tile;
+            }
+        }
+
+        None
+    }
 }
-
-/// Mutable borrowed types from a [ChunkQuery] needed to construct a mutable [ChunkMapQuery]
-pub struct MutableBorrowedChunkQueries<'a, 'w: 'a, 's: 'a, Q, F, const N: usize>
-where
-    Q: QueryData + 'static,
-    F: QueryFilter + 'static,
-{
-    phantom: PhantomData<(&'a Q, &'w F, &'s Q)>,
-}
-
-impl<'a, 'w: 'a, 's: 'a, Q, F, const N: usize> BorrowedChunkQueryTypes<'a>
-    for MutableBorrowedChunkQueries<'a, 'w, 's, Q, F, N>
-where
-    Q: QueryData + 'static,
-    F: QueryFilter + 'static,
-{
-    type ChunkQuery = &'a mut Query<'w, 's, Q, (F, With<InMap>, With<Chunk>)>;
-
-    type Map = &'a TileMap<N>;
-}
-
-/// Describes the types used to construct a query, mainly needed to reduce code duplication.
-pub trait BorrowedChunkQueryTypes<'a> {
-    /// Query for chunks.
-    type ChunkQuery;
-    /// The map used.
-    type Map;
-}
-
-// /// Iterates over a range of chunks using chunk coordinates.
-// pub struct ChunkQueryIter<'w, 's, Q, F, const N: usize>
-// where
-//     Q: QueryData + 'static,
-//     F: QueryFilter + 'static,
-// {
-//     coord_iter: CoordIterator<N>,
-//     chunk_q: &'w ChunkMapQuery<'w, 's, Q, F, N>,
-// }
-
-// impl<'w, 's, Q, F, const N: usize> ChunkQueryIter<'w, 's, Q, F, N>
-// where
-//     Q: QueryData + 'static,
-//     F: QueryFilter + 'static,
-// {
-//     /// # Safety
-//     /// This iterator uses unchecked get's to get around some lifetime issue I don't understand yet.
-//     /// Due to this, you should only call this constructor from a context where the query is actually
-//     /// borrowed mutabley.
-//     fn new(
-//         chunk_q: &'w ChunkMapQuery<'w, 's, Q, F, N>,
-//         corner_1: [isize; N],
-//         corner_2: [isize; N],
-//     ) -> Self {
-//         Self {
-//             chunk_q,
-//             coord_iter: CoordIterator::new(corner_1, corner_2),
-//         }
-//     }
-// }
-
-// impl<'w, 's, Q, F, const N: usize> Iterator for ChunkQueryIter<'w, 's, Q, F, N>
-// where
-//     Q: QueryData + 'static,
-//     F: QueryFilter + 'static,
-// {
-//     type Item = <<Q as QueryData>::ReadOnly as WorldQuery>::Item<'w>;
-
-//     #[allow(clippy::while_let_on_iterator)]
-//     #[inline]
-//     fn next(&mut self) -> Option<Self::Item> {
-//         while let Some(target) = self.coord_iter.next() {
-//             let tile = self.chunk_q.get_at(target);
-//             if tile.is_some() {
-//                 return tile;
-//             }
-//         }
-
-//         None
-//     }
-// }
-
-// /// Iterates over a range of chunks mutably using chunk coordinates.
-// /// # Note
-// /// Due to weird borrow checker stuff, this is a seperate struct.
-// /// In the future, we may find a way to combine the iterators.
-// /// ```compile_fail
-// ///# // Because we're using unsafe, we need to make sure we don't mutabley alias.
-// ///# fn multiple_iter_mut(mut tile_query: ChunkQuery<TestLayer, ()>) {
-// ///#     let mut iter_1 = tile_query.iter_in([0, 0], [3, 3]);
-// ///#     let mut iter_2 = tile_query.iter_in_mut([0, 0], [3, 3]);
-// ///#     let _ = iter_1.next();
-// ///#     let _ = iter_2.next();
-// ///# }
-// /// ```
-// pub struct ChunkQueryIterMut<'w, 's, Q, F, const N: usize>
-// where
-//     Q: QueryData + 'static,
-//     F: QueryFilter + 'static,
-// {
-//     coord_iter: CoordIterator<N>,
-//     chunk_q: &'w ChunkMapQuery<'w, 's, Q, F, N>,
-// }
-
-// impl<'w, 's, Q, F, const N: usize> ChunkQueryIterMut<'w, 's, Q, F, N>
-// where
-//     Q: QueryData + 'static,
-//     F: QueryFilter + 'static,
-// {
-//     /// # Safety
-//     /// This iterator uses unchecked get's to get around some lifetime issue I don't understand yet.
-//     /// Due to this, you should only call this constructor from a context where the query is actually
-//     /// borrowed mutabley.
-//     unsafe fn new(
-//         chunk_q: &'w ChunkMapQuery<'w, 's, Q, F, N>,
-//         corner_1: [isize; N],
-//         corner_2: [isize; N],
-//     ) -> Self {
-//         Self {
-//             chunk_q,
-//             coord_iter: CoordIterator::new(corner_1, corner_2),
-//         }
-//     }
-// }
-
-// impl<'w, 's, Q, F, const N: usize> Iterator for ChunkQueryIterMut<'w, 's, Q, F, N>
-// where
-//     Q: QueryData + 'static,
-//     F: QueryFilter + 'static,
-// {
-//     type Item = <Q as WorldQuery>::Item<'w>;
-
-//     #[allow(clippy::while_let_on_iterator)]
-//     #[inline]
-//     fn next(&mut self) -> Option<Self::Item> {
-//         while let Some(target) = self.coord_iter.next() {
-//             // SAFETY: This fixes some lifetime issue that I'm not sure I understand quite yet, will do testing
-//             let tile = unsafe { self.chunk_q.get_at_unchecked(target) };
-//             if tile.is_some() {
-//                 return tile;
-//             }
-//         }
-
-//         None
-//     }
-// }

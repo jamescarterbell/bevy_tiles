@@ -25,7 +25,7 @@ fn spawn(mut commands: Commands, asset_server: Res<AssetServer>) {
     let character = asset_server.load("character.png");
 
     commands.spawn(Camera2dBundle::default());
-    let mut map_id = commands.spawn_map::<GameLayer, 2>(16, GameLayer).id();
+    let mut map = commands.spawn_map::<2>(16, GameLayer);
 
     let sprite_bundle = SpriteBundle {
         texture: block,
@@ -33,8 +33,7 @@ fn spawn(mut commands: Commands, asset_server: Res<AssetServer>) {
     };
 
     // spawn a 10 * 10 room
-    commands.spawn_tile_batch(
-        map_id,
+    map.spawn_tile_batch(
         CoordIterator::new([-5, 5], [5, 5])
             .chain(CoordIterator::new([-5, -5], [5, -5]))
             .chain(CoordIterator::new([5, -4], [5, 4]))
@@ -43,8 +42,7 @@ fn spawn(mut commands: Commands, asset_server: Res<AssetServer>) {
     );
 
     // spawn a player
-    commands.spawn_tile(
-        map_id,
+    map.spawn_tile(
         [0, 0],
         (
             Character,

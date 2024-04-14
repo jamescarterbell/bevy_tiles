@@ -1,8 +1,6 @@
 use bevy::ecs::{entity::Entity, system::Command, world::World};
 
-use crate::{maps::TileMap, prelude::ChunkCoord};
-
-use super::{despawn_children, insert_map, remove_map, take_chunk_despawn_tiles_inner};
+use super::{despawn_children, insert_map, remove_map};
 
 pub struct SpawnMap<const N: usize = 2> {
     pub map_id: Entity,

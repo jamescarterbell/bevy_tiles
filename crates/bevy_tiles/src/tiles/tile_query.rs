@@ -20,6 +20,60 @@ use crate::{
 
 use super::{InChunk, TileCoord};
 
+/// Borrowed types from a [TileMapQuery] needed to construct a [TileQuery]
+pub struct BorrowedTileQueries<'a, 'w: 'a, 's: 'a, Q, F, const N: usize>
+where
+    Q: QueryData + 'static,
+    F: QueryFilter + 'static,
+{
+    phantom: PhantomData<(&'a Q, &'w F, &'s Q)>,
+}
+
+impl<'a, 'w: 'a, 's: 'a, Q, F, const N: usize> BorrowedTileQueryTypes<'a>
+    for BorrowedTileQueries<'a, 'w, 's, Q, F, N>
+where
+    Q: QueryData + 'static,
+    F: QueryFilter + 'static,
+{
+    type TileQuery = &'a Query<'w, 's, Q, (F, With<InChunk>)>;
+
+    type ChunkQuery = &'a Query<'w, 's, &'static Chunk, With<InMap>>;
+
+    type Map = &'a TileMap<N>;
+}
+
+/// Mutable borrowed types from a [TileMapQuery] needed to construct a mutable [TileQuery]
+pub struct MutableBorrowedTileQueries<'a, 'w: 'a, 's: 'a, Q, F, const N: usize>
+where
+    Q: QueryData + 'static,
+    F: QueryFilter + 'static,
+{
+    phantom: PhantomData<(&'a Q, &'w F, &'s Q)>,
+}
+
+impl<'a, 'w: 'a, 's: 'a, Q, F, const N: usize> BorrowedTileQueryTypes<'a>
+    for MutableBorrowedTileQueries<'a, 'w, 's, Q, F, N>
+where
+    Q: QueryData + 'static,
+    F: QueryFilter + 'static,
+{
+    type TileQuery = &'a mut Query<'w, 's, Q, (F, With<InChunk>)>;
+
+    type ChunkQuery = &'a mut Query<'w, 's, &'static Chunk, With<InMap>>;
+
+    type Map = &'a TileMap<N>;
+}
+
+/// Describes the types used to construct a query, mainly needed to reduce code duplication.
+pub trait BorrowedTileQueryTypes<'a> {
+    /// Query for tiles.
+    type TileQuery;
+    /// Query for chunks.
+    type ChunkQuery;
+    /// The map used.
+    type Map;
+}
+
 /// Used to query individual tiles from a tile map.
 /// This query also implicitly queries chunks and maps
 /// in order to properly resolve tiles.
@@ -289,7 +343,7 @@ impl<'i, 'a: 'i, 'w: 'a, 's: 'a, Q, F, T, C, const N: usize> Iterator
     for TileQueryIterMut<'i, 'a, T, C, N>
 where
     T: DerefMut<Target = Query<'w, 's, Q, (F, With<InChunk>)>>,
-    C: DerefMut<Target = Query<'w, 's, &'static Chunk, With<InMap>>>,
+    C: Deref<Target = Query<'w, 's, &'static Chunk, With<InMap>>>,
     Q: QueryData + 'static,
     F: QueryFilter + 'static,
 {
@@ -298,7 +352,7 @@ where
     #[allow(clippy::while_let_on_iterator)]
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(target) = self.coord_iter.next() {
-            // SAFETY: This fixes some lifetime issue that I'm not sure I understand quite yet, will do testing
+            // SAFETY: This is safe as long as new always requires a mutable reference
             let tile = unsafe { self.tile_q.get_at_unchecked(target) };
             if tile.is_some() {
                 return tile;

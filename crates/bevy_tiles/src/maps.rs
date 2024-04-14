@@ -1,15 +1,9 @@
-use std::marker::PhantomData;
-
 use bevy::{
     ecs::{component::Component, entity::Entity},
     utils::HashMap,
 };
 
-use crate::{
-    chunks::ChunkCoord,
-    prelude::{calculate_chunk_coordinate, calculate_tile_coordinate},
-    tiles::TileCoord,
-};
+use crate::{chunks::ChunkCoord, prelude::calculate_chunk_coordinate, tiles::TileCoord};
 
 /// Holds handles to all the chunks in a map.
 /// # Note

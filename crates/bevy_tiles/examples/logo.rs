@@ -5,19 +5,15 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(TilesPlugin)
-        .add_systems(Startup, spawn)
-        .add_systems(Update, sync_tile_transforms)
+        .add_systems(Startup, (spawn, sync_tile_transforms).chain())
         .run();
 }
 
 #[derive(Component)]
 struct Block;
 
+#[derive(Component)]
 struct GameLayer;
-
-impl TileMapLabel for GameLayer {
-    const CHUNK_SIZE: usize = 16;
-}
 
 fn spawn(mut commands: Commands, asset_server: Res<AssetServer>) {
     let block = asset_server.load("block.png");
@@ -26,7 +22,7 @@ fn spawn(mut commands: Commands, asset_server: Res<AssetServer>) {
         transform: Transform::from_translation(Vec3::new(480.0, 32.0, 0.0)),
         ..Default::default()
     });
-    let mut tile_commands = commands.tiles::<GameLayer, 2>();
+    let mut map = commands.spawn_map::<2>(16, GameLayer);
 
     let sprite_bundle = SpriteBundle {
         texture: block,
@@ -51,14 +47,12 @@ eeeee  eeee e    e e    e       eeee8 eeeee e     eeee  eeeee
     });
 
     // spawn a 10 * 10 room
-    tile_commands.spawn_tile_batch(logo.collect::<Vec<[isize; 2]>>(), move |_| {
+    map.spawn_tile_batch(logo.collect::<Vec<[isize; 2]>>(), move |_| {
         (Block, sprite_bundle.clone())
     });
 }
 
-fn sync_tile_transforms(
-    mut tiles: TileMapQuery<GameLayer, (&TileCoord, &mut Transform), Changed<TileCoord>>,
-) {
+fn sync_tile_transforms(mut tiles: Query<(&TileCoord, &mut Transform), Changed<TileCoord>>) {
     for (tile_c, mut transform) in tiles.iter_mut() {
         transform.translation.x = tile_c[0] as f32 * 16.0;
         transform.translation.y = tile_c[1] as f32 * 16.0;

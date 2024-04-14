@@ -19,18 +19,17 @@ struct Block;
 #[derive(Component)]
 struct Character;
 
+#[derive(Component)]
 struct GameLayer;
-
-impl TileMapLabel for GameLayer {
-    const CHUNK_SIZE: usize = 16;
-}
 
 fn spawn(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let cube = meshes.add(Mesh::from(shape::Cube { size: 1.0 }));
+    let cube = meshes.add(Mesh::from(Cuboid {
+        half_size: Vec3::ONE,
+    }));
 
     let color_block = materials.add(StandardMaterial {
         base_color: Color::BLUE,
@@ -57,7 +56,7 @@ fn spawn(
         ..Default::default()
     };
 
-    let mut tile_commands = commands.tiles::<GameLayer, 3>();
+    let mut tile_commands = commands.spawn_map::<3>(16, GameLayer);
 
     // spawn a 10 * 10 room
     tile_commands.spawn_tile_batch(
@@ -108,10 +107,12 @@ fn spawn(
 fn move_character(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mut commands: Commands,
-    character: TileMapQuery<GameLayer, &TileCoord<3>, With<Character>, 3>,
-    walls: TileMapQuery<GameLayer, (), With<Block>, 3>,
+    map: Query<Entity, With<GameLayer>>,
+    character: Query<&TileCoord<3>, With<Character>>,
+    walls_maps: TileMapQuery<(), With<Block>, 3>,
 ) {
-    let mut tile_commands = commands.tiles::<GameLayer, 3>();
+    let map_id = map.single();
+    let walls = walls_maps.get_map(map_id).unwrap();
 
     let mut x = if keyboard_input.just_pressed(KeyCode::KeyA) {
         -1
@@ -150,14 +151,11 @@ fn move_character(
     let new_coord = [char_c[0] + x, char_c[1] + y, char_c[2] + z];
 
     if walls.get_at(new_coord).is_none() {
-        tile_commands.move_tile(**char_c, new_coord);
+        commands.move_tile(map_id, **char_c, new_coord);
     }
 }
 
-fn sync_tile_transforms(
-    // Important, you have to put the 3 in all these places at the moment!!!
-    mut tiles: TileMapQuery<GameLayer, (&TileCoord<3>, &mut Transform), Changed<TileCoord<3>>, 3>,
-) {
+fn sync_tile_transforms(mut tiles: Query<(&TileCoord<3>, &mut Transform), Changed<TileCoord<3>>>) {
     for (tile_c, mut transform) in tiles.iter_mut() {
         transform.translation.x = tile_c[0] as f32;
         transform.translation.y = tile_c[1] as f32;
