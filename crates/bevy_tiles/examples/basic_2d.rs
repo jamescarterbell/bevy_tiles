@@ -64,28 +64,11 @@ fn move_character(
     let map_id = map.single();
     let walls = walls_maps.get_map(map_id).unwrap();
 
-    let mut x = if keyboard_input.just_pressed(KeyCode::KeyA) {
-        -1
-    } else {
-        0
-    };
-    x += if keyboard_input.just_pressed(KeyCode::KeyD) {
-        1
-    } else {
-        0
-    };
+    let x = keyboard_input.just_pressed(KeyCode::KeyD) as isize
+        - keyboard_input.just_pressed(KeyCode::KeyA) as isize;
 
-    let mut y = if keyboard_input.just_pressed(KeyCode::KeyW) {
-        1
-    } else {
-        0
-    };
-
-    y -= if keyboard_input.just_pressed(KeyCode::KeyS) {
-        1
-    } else {
-        0
-    };
+    let y = keyboard_input.just_pressed(KeyCode::KeyW) as isize
+        - keyboard_input.just_pressed(KeyCode::KeyS) as isize;
 
     let char_c = character.get_single().unwrap();
     let new_coord = [char_c[0] + x, char_c[1] + y];
