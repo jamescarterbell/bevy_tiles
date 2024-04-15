@@ -41,11 +41,8 @@ impl DerefMut for Damage {
     }
 }
 
+#[derive(Component)]
 struct GameLayer;
-
-impl TileMapLabel for GameLayer {
-    const CHUNK_SIZE: usize = 16;
-}
 
 fn spawn(mut commands: Commands, asset_server: Res<AssetServer>) {
     let block = asset_server.load("block.png");
@@ -57,26 +54,33 @@ fn spawn(mut commands: Commands, asset_server: Res<AssetServer>) {
         },
         ..Default::default()
     });
-    let mut tile_commands = commands.tiles::<GameLayer, 2>();
+    let mut tile_commands = commands.spawn_map::<2>(32, GameLayer);
 
     let sprite_bundle = SpriteBundle {
         texture: block,
         ..Default::default()
     };
 
-    tile_commands.spawn_tile_batch(CoordIterator::new([-250, -250], [250, 250]), move |_| {
-        (Block, sprite_bundle.clone())
-    })
+    let size = 200;
+
+    tile_commands.spawn_tile_batch(
+        CoordIterator::new([-size, -size], [size, size]),
+        move |_| (Block, sprite_bundle.clone()),
+    );
 }
 
 fn add_damage(
     mut commands: Commands,
-    mut blocks: TileQuery<GameLayer, (Entity, Option<&mut Damage>), With<Block>>,
+    mut block_maps: TileMapQuery<(Entity, Option<&mut Damage>), With<Block>>,
+    map: Query<(Entity, &TileMap), With<GameLayer>>,
     windows: Query<&Window, With<PrimaryWindow>>,
     camera: Query<(&Camera, &GlobalTransform)>,
-    buttons: Res<Input<MouseButton>>,
+    buttons: Res<ButtonInput<MouseButton>>,
 ) {
+    let (map_id, map) = map.single();
     let (cam, cam_t) = camera.single();
+    let mut blocks = block_maps.get_map_mut(map_id).unwrap();
+
     let cursor_pos = windows
         .single()
         .cursor_position()
@@ -104,8 +108,8 @@ fn add_damage(
         .then_some(cursor_pos)
         .flatten()
     {
-        let chunk_c = calculate_chunk_coordinate(damage_pos, GameLayer::CHUNK_SIZE);
-        commands.tiles::<GameLayer, 2>().despawn_chunk(chunk_c);
+        let chunk_c = calculate_chunk_coordinate(damage_pos, map.get_chunk_size());
+        commands.tile_map::<2>(map_id).despawn_chunk(chunk_c);
     }
 }
 
@@ -129,9 +133,7 @@ fn check_damage(
     }
 }
 
-fn sync_tile_transforms(
-    mut tiles: TileQuery<GameLayer, (&TileCoord, &mut Transform), Changed<TileCoord>>,
-) {
+fn sync_tile_transforms(mut tiles: Query<(&TileCoord, &mut Transform), Changed<TileCoord>>) {
     for (tile_c, mut transform) in tiles.iter_mut() {
         transform.translation.x = tile_c[0] as f32 * 16.0;
         transform.translation.y = tile_c[1] as f32 * 16.0;
