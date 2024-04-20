@@ -11,9 +11,9 @@ use bevy::{
 };
 
 use crate::{
-    chunks::ChunkCoord,
+    chunks::{Chunk, ChunkCoord, InMap},
+    coords::CoordIterator,
     maps::TileMap,
-    prelude::{Chunk, CoordIterator, InMap},
 };
 
 /// Used to query chunks from any tile map.
@@ -81,8 +81,9 @@ where
     #[inline]
     pub fn get_at(
         &self,
-        chunk_c: [isize; N],
+        chunk_c: impl Into<[i32; N]>,
     ) -> Option<<<Q as QueryData>::ReadOnly as WorldQuery>::Item<'_>> {
+        let chunk_c = chunk_c.into();
         let chunk_id = self.map.get_from_chunk(ChunkCoord(chunk_c))?;
 
         self.chunk_q.get(chunk_id).ok()
@@ -96,8 +97,9 @@ where
     #[inline]
     pub unsafe fn get_at_unchecked(
         &self,
-        chunk_c: [isize; N],
+        chunk_c: impl Into<[i32; N]>,
     ) -> Option<<Q as WorldQuery>::Item<'_>> {
+        let chunk_c = chunk_c.into();
         let chunk_id = self.map.get_from_chunk(ChunkCoord(chunk_c))?;
 
         self.chunk_q.get_unchecked(chunk_id).ok()
@@ -110,9 +112,11 @@ where
     #[inline]
     pub fn iter_in(
         &self,
-        corner_1: [isize; N],
-        corner_2: [isize; N],
+        corner_1: impl Into<[i32; N]>,
+        corner_2: impl Into<[i32; N]>,
     ) -> ChunkQueryIter<'_, 'a, C, N> {
+        let corner_1 = corner_1.into();
+        let corner_2 = corner_2.into();
         ChunkQueryIter::new(self, corner_1, corner_2)
     }
 }
@@ -127,7 +131,11 @@ where
     /// # Note
     /// Coordinates are for these calls are in chunk coordinates.
     #[inline]
-    pub fn get_at_mut(&mut self, chunk_c: [isize; N]) -> Option<<Q as WorldQuery>::Item<'_>> {
+    pub fn get_at_mut(
+        &mut self,
+        chunk_c: impl Into<[i32; N]>,
+    ) -> Option<<Q as WorldQuery>::Item<'_>> {
+        let chunk_c = chunk_c.into();
         let chunk_id = self.map.get_from_chunk(ChunkCoord(chunk_c))?;
 
         self.chunk_q.get_mut(chunk_id).ok()
@@ -140,9 +148,11 @@ where
     #[inline]
     pub fn iter_in_mut(
         &mut self,
-        corner_1: [isize; N],
-        corner_2: [isize; N],
+        corner_1: impl Into<[i32; N]>,
+        corner_2: impl Into<[i32; N]>,
     ) -> ChunkQueryIterMut<'_, 'a, C, N> {
+        let corner_1 = corner_1.into();
+        let corner_2 = corner_2.into();
         ChunkQueryIterMut::new(self, corner_1, corner_2)
     }
 }
@@ -154,7 +164,7 @@ pub struct ChunkQueryIter<'i, 'a, C, const N: usize> {
 }
 
 impl<'i, 'a, C, const N: usize> ChunkQueryIter<'i, 'a, C, N> {
-    fn new(chunk_q: &'i ChunkQuery<'a, C, N>, corner_1: [isize; N], corner_2: [isize; N]) -> Self {
+    fn new(chunk_q: &'i ChunkQuery<'a, C, N>, corner_1: [i32; N], corner_2: [i32; N]) -> Self {
         Self {
             chunk_q,
             coord_iter: CoordIterator::new(corner_1, corner_2),
@@ -191,7 +201,7 @@ pub struct ChunkQueryIterMut<'i, 'a, C, const N: usize> {
 }
 
 impl<'i, 'a, C, const N: usize> ChunkQueryIterMut<'i, 'a, C, N> {
-    fn new(chunk_q: &'i ChunkQuery<'a, C, N>, corner_1: [isize; N], corner_2: [isize; N]) -> Self {
+    fn new(chunk_q: &'i ChunkQuery<'a, C, N>, corner_1: [i32; N], corner_2: [i32; N]) -> Self {
         Self {
             chunk_q,
             coord_iter: CoordIterator::new(corner_1, corner_2),

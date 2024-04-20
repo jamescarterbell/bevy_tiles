@@ -1,37 +1,36 @@
 /// Calculate the coordinate of a chunk from a given tile coordinate and chunk size
 #[inline]
 pub fn calculate_chunk_coordinate<const N: usize>(
-    mut tile_c: [isize; N],
+    tile_c: impl Into<[i32; N]>,
     chunk_size: usize,
-) -> [isize; N] {
-    for i in tile_c.iter_mut() {
-        if *i < 0 {
-            *i = (*i + 1) / (chunk_size as isize) - 1;
+) -> [i32; N] {
+    tile_c.into().map(|i| {
+        if i < 0 {
+            (i + 1) / (chunk_size as i32) - 1
         } else {
-            *i /= chunk_size as isize;
+            i / chunk_size as i32
         }
-    }
-    tile_c
+    })
 }
 
 /// Calculate the coordinate of a tile relative to the origin of it's chunk.
 #[inline]
 pub fn calculate_chunk_relative_tile_coordinate<const N: usize>(
-    mut tile_c: [isize; N],
+    tile_c: impl Into<[i32; N]>,
     chunk_size: usize,
-) -> [isize; N] {
-    for i in tile_c.iter_mut() {
-        *i %= chunk_size as isize;
-        if *i < 0 {
-            *i += chunk_size as isize;
+) -> [i32; N] {
+    tile_c.into().map(|mut i| {
+        i %= chunk_size as i32;
+        if i < 0 {
+            i += chunk_size as i32;
         }
-    }
-    tile_c
+        i
+    })
 }
 
 /// Calculate the index of a tile within it's chunk.
 #[inline]
-pub fn calculate_tile_index<const N: usize>(tile_c: [isize; N], chunk_size: usize) -> usize {
+pub fn calculate_tile_index<const N: usize>(tile_c: [i32; N], chunk_size: usize) -> usize {
     let mut index = 0;
     let relative_tile_c = calculate_chunk_relative_tile_coordinate(tile_c, chunk_size);
     for (i, c) in relative_tile_c.iter().enumerate() {
@@ -43,16 +42,16 @@ pub fn calculate_tile_index<const N: usize>(tile_c: [isize; N], chunk_size: usiz
 /// Calculate the coordinate of a tile from it's index in a chunk, and the chunk coordinate.
 #[inline]
 pub fn calculate_tile_coordinate<const N: usize>(
-    chunk_c: [isize; N],
+    chunk_c: [i32; N],
     tile_i: usize,
     chunk_size: usize,
-) -> [isize; N] {
-    let mut chunk_world_c = chunk_c.map(|c| c * chunk_size as isize);
+) -> [i32; N] {
+    let mut chunk_world_c = chunk_c.map(|c| c * chunk_size as i32);
     for (i, c) in chunk_world_c.iter_mut().enumerate() {
         if i == 0 {
-            *c += (tile_i % chunk_size) as isize;
+            *c += (tile_i % chunk_size) as i32;
         } else {
-            *c += (tile_i / chunk_size.pow(i as u32)) as isize;
+            *c += (tile_i / chunk_size.pow(i as u32)) as i32;
         }
     }
     chunk_world_c
@@ -73,21 +72,25 @@ pub fn max_tile_index<const N: usize>(chunk_size: usize) -> usize {
 /// (For example, if tiles are being represented by 16x16 pixel sprites,
 /// the scale factor should be set to 16)
 #[inline]
-pub fn world_to_tile<const N: usize>(world_c: [f32; N], scale_f: f32) -> [isize; N] {
-    world_c.map(|c| (c / scale_f - if c < 0.0 { 1.0 } else { 0.0 }) as isize)
+pub fn world_to_tile<const N: usize>(world_c: impl Into<[f32; N]>, scale_f: f32) -> [i32; N] {
+    world_c
+        .into()
+        .map(|c| (c / scale_f - if c < 0.0 { 1.0 } else { 0.0 }) as i32)
 }
 
 /// Allows for iteration between all coordinates in between two corners.
 pub struct CoordIterator<const N: usize> {
-    corner_1: [isize; N],
-    corner_2: [isize; N],
-    current: [isize; N],
+    corner_1: [i32; N],
+    corner_2: [i32; N],
+    current: [i32; N],
     complete: bool,
 }
 
 impl<const N: usize> CoordIterator<N> {
     /// Create an iterator that iterates through each point created by the bounding of two corners.
-    pub fn new(mut corner_1: [isize; N], mut corner_2: [isize; N]) -> Self {
+    pub fn new(corner_1: impl Into<[i32; N]>, corner_2: impl Into<[i32; N]>) -> Self {
+        let mut corner_1 = corner_1.into();
+        let mut corner_2 = corner_2.into();
         for i in 0..N {
             if corner_1[i] > corner_2[i] {
                 std::mem::swap(&mut corner_1[i], &mut corner_2[i]);
@@ -104,7 +107,7 @@ impl<const N: usize> CoordIterator<N> {
 }
 
 impl<const N: usize> Iterator for CoordIterator<N> {
-    type Item = [isize; N];
+    type Item = [i32; N];
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -138,7 +141,7 @@ mod tests {
 
     use super::*;
 
-    fn make_range_iter(val_1: isize, val_2: isize) -> RangeInclusive<isize> {
+    fn make_range_iter(val_1: i32, val_2: i32) -> RangeInclusive<i32> {
         if val_1 < val_2 {
             val_1..=val_2
         } else {
@@ -153,7 +156,7 @@ mod tests {
     #[case([0, 3, 0], [3, 3, 3])]
     #[case([0, 3, 0], [0, 0, 3])]
     #[case([3, 3, 3], [3, 3, 3])]
-    fn coord_iter(#[case] corner_1: [isize; 3], #[case] corner_2: [isize; 3]) {
+    fn coord_iter(#[case] corner_1: [i32; 3], #[case] corner_2: [i32; 3]) {
         let mut iter = CoordIterator::new(corner_1, corner_2);
 
         for z in make_range_iter(corner_1[2], corner_2[2]) {
@@ -178,11 +181,7 @@ mod tests {
     #[case(16, [-1, -1], 255)]
     #[case(16, [-16, -16], 0)]
     #[case(8, [-8, -0], 0)]
-    fn tile_index_test(
-        #[case] chunk_size: usize,
-        #[case] tile_c: [isize; 2],
-        #[case] index: usize,
-    ) {
+    fn tile_index_test(#[case] chunk_size: usize, #[case] tile_c: [i32; 2], #[case] index: usize) {
         assert_eq!(calculate_tile_index(tile_c, chunk_size), index)
     }
 }

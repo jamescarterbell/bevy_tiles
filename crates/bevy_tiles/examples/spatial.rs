@@ -6,7 +6,13 @@ use bevy::{
     window::PrimaryWindow,
     DefaultPlugins,
 };
-use bevy_tiles::prelude::*;
+use bevy_tiles::{
+    commands::TileCommandExt,
+    coords::{calculate_chunk_coordinate, world_to_tile, CoordIterator},
+    maps::TileMap,
+    tiles_2d::*,
+    TilesPlugin,
+};
 use std::ops::{Deref, DerefMut};
 
 fn main() {
@@ -54,7 +60,7 @@ fn spawn(mut commands: Commands, asset_server: Res<AssetServer>) {
         },
         ..Default::default()
     });
-    let mut tile_commands = commands.spawn_map::<2>(32, GameLayer);
+    let mut tile_commands = commands.spawn_map(32, GameLayer);
 
     let sprite_bundle = SpriteBundle {
         texture: block,
@@ -86,7 +92,7 @@ fn add_damage(
         .cursor_position()
         .and_then(|cursor| cam.viewport_to_world(cam_t, cursor.xy()))
         .map(|ray| ray.origin.truncate())
-        .map(|pos| world_to_tile(pos.into(), 16.0));
+        .map(|pos| world_to_tile(pos, 16.0));
 
     if let Some(damage_pos) = buttons
         .just_pressed(MouseButton::Left)
@@ -109,7 +115,7 @@ fn add_damage(
         .flatten()
     {
         let chunk_c = calculate_chunk_coordinate(damage_pos, map.get_chunk_size());
-        commands.tile_map::<2>(map_id).despawn_chunk(chunk_c);
+        commands.tile_map(map_id).despawn_chunk(chunk_c);
     }
 }
 
