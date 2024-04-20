@@ -9,13 +9,13 @@ is meant to be exploration of API design posibilities, rather than aiming for im
 * [`bevy_tiles`](crates/bevy_tiles)
 [![Crates.io](https://img.shields.io/crates/v/bevy_tiles)](https://crates.io/crates/bevy_tiles)
 [![docs](https://docs.rs/bevy_tiles/badge.svg)](https://docs.rs/bevy_tiles/)
-[![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/OxidizedGames/bevy_tiles/blob/main/LICENSE)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/jamescarterbell/bevy_tiles/blob/main/LICENSE)
 [![Crates.io](https://img.shields.io/crates/d/bevy_tiles)](https://crates.io/crates/bevy_tiles)
 
     Provides raw bevy ecs utilities for working with tiled entities in any number of dimensions.
-* [`bevy_tiles_render`](crate/bevy_tiles_render)
-[![Crates.io](https://img.shields.io/crates/v/bevy_tiles)](https://crates.io/crates/bevy_tiles)
-[![docs](https://docs.rs/bevy_tiles/badge.svg)](https://docs.rs/bevy_tiles/)
-[![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/OxidizedGames/bevy_tiles/blob/main/LICENSE)
-[![Crates.io](https://img.shields.io/crates/d/bevy_tiles)](https://crates.io/crates/bevy_tiles)
+* [`bevy_tiles_2d_render`](crate/bevy_tiles_render_2d_render)
+[![Crates.io](https://img.shields.io/crates/v/bevy_tiles)](https://crates.io/crates/bevy_tiles_2d_render)
+[![docs](https://docs.rs/bevy_tiles_2d_render/badge.svg)](https://docs.rs/bevy_tiles_2d_render/)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/jamescarterbell/bevy_tiles/blob/main/LICENSE)
+[![Crates.io](https://img.shields.io/crates/d/bevy_tiles_2d_render)](https://crates.io/crates/bevy_tiles_2d_render)
 

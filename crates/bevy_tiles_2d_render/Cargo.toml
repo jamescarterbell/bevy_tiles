@@ -1,0 +1,26 @@
+[package]
+name = "bevy_tiles_2d_render"
+version = "0.1.0"
+edition.workspace = true
+authors.workspace = true
+license-file.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Bevy for rendering 2d tilemaps."
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[dependencies]
+bevy = {workspace = true}
+bevy_tiles = {path = "../bevy_tiles", version = "0.1.0"}
+
+[dev-dependencies]
+rstest = {workspace = true}
+bevy = {workspace = true, default-features = true}
+
+[lints]
+workspace = true

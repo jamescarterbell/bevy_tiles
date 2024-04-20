@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
 members=[
-    "crates/bevy_tiles",
+    "crates/bevy_tiles", "crates/bevy_tiles_2d_render",
 ]
 
 [workspace.package]

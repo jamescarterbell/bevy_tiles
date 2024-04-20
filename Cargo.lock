@@ -920,6 +920,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_tiles_2d_render"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "bevy_tiles",
+ "rstest",
+]
+
+[[package]]
 name = "bevy_time"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
