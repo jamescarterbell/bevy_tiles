@@ -4,7 +4,7 @@ use super::{insert_tile, insert_tile_into_map, remove_map, take_tile, take_tile_
 
 pub struct SpawnTile<const N: usize = 2> {
     pub map_id: Entity,
-    pub tile_c: [isize; N],
+    pub tile_c: [i32; N],
     pub tile_id: Entity,
 }
 
@@ -16,7 +16,7 @@ impl<const N: usize> Command for SpawnTile<N> {
 
 pub struct DespawnTile<const N: usize> {
     pub map_id: Entity,
-    pub tile_c: [isize; N],
+    pub tile_c: [i32; N],
 }
 
 impl<const N: usize> Command for DespawnTile<N> {
@@ -30,8 +30,8 @@ impl<const N: usize> Command for DespawnTile<N> {
 
 pub struct SwapTile<const N: usize> {
     pub map_id: Entity,
-    pub tile_c_1: [isize; N],
-    pub tile_c_2: [isize; N],
+    pub tile_c_1: [i32; N],
+    pub tile_c_2: [i32; N],
 }
 
 impl<const N: usize> Command for SwapTile<N> {
@@ -62,8 +62,8 @@ impl<const N: usize> Command for SwapTile<N> {
 
 pub struct MoveTile<const N: usize> {
     pub map_id: Entity,
-    pub old_c: [isize; N],
-    pub new_c: [isize; N],
+    pub old_c: [i32; N],
+    pub new_c: [i32; N],
 }
 
 impl<const N: usize> Command for MoveTile<N> {

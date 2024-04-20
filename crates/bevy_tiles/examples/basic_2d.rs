@@ -1,5 +1,5 @@
 use bevy::{prelude::*, sprite::SpriteBundle, DefaultPlugins};
-use bevy_tiles::prelude::*;
+use bevy_tiles::{commands::TileCommandExt, coords::CoordIterator, tiles_2d::*, TilesPlugin};
 
 fn main() {
     App::new()
@@ -25,7 +25,7 @@ fn spawn(mut commands: Commands, asset_server: Res<AssetServer>) {
     let character = asset_server.load("character.png");
 
     commands.spawn(Camera2dBundle::default());
-    let mut map = commands.spawn_map::<2>(16, GameLayer);
+    let mut map = commands.spawn_map(16, GameLayer);
 
     let sprite_bundle = SpriteBundle {
         texture: block,
@@ -64,23 +64,22 @@ fn move_character(
     let map_id = map.single();
     let walls = walls_maps.get_map(map_id).unwrap();
 
-    let x = keyboard_input.just_pressed(KeyCode::KeyD) as isize
-        - keyboard_input.just_pressed(KeyCode::KeyA) as isize;
+    let x = keyboard_input.just_pressed(KeyCode::KeyD) as i32
+        - keyboard_input.just_pressed(KeyCode::KeyA) as i32;
 
-    let y = keyboard_input.just_pressed(KeyCode::KeyW) as isize
-        - keyboard_input.just_pressed(KeyCode::KeyS) as isize;
+    let y = keyboard_input.just_pressed(KeyCode::KeyW) as i32
+        - keyboard_input.just_pressed(KeyCode::KeyS) as i32;
 
-    let char_c = character.get_single().unwrap();
-    let new_coord = [char_c[0] + x, char_c[1] + y];
+    let char_c = IVec2::from(*character.get_single().unwrap());
+    let new_coord = char_c + IVec2::new(x, y);
 
     if (x != 0 || y != 0) && walls.get_at(new_coord).is_none() {
-        commands.move_tile(map_id, **char_c, new_coord);
+        commands.move_tile(map_id, char_c, new_coord);
     }
 }
 
 fn sync_tile_transforms(mut tiles: Query<(&TileCoord, &mut Transform), Changed<TileCoord>>) {
     for (tile_c, mut transform) in tiles.iter_mut() {
-        transform.translation.x = tile_c[0] as f32 * 16.0;
-        transform.translation.y = tile_c[1] as f32 * 16.0;
+        transform.translation = Vec3::from((Vec2::from(*tile_c) * Vec2::ONE * 16.0, 0.0));
     }
 }

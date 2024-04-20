@@ -3,7 +3,7 @@ use bevy::{
     utils::HashMap,
 };
 
-use crate::{chunks::ChunkCoord, prelude::calculate_chunk_coordinate, tiles::TileCoord};
+use crate::{chunks::ChunkCoord, coords::calculate_chunk_coordinate, tiles::TileCoord};
 
 /// Holds handles to all the chunks in a map.
 /// # Note

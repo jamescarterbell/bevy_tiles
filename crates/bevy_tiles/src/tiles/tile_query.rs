@@ -1,7 +1,4 @@
-use std::{
-    marker::PhantomData,
-    ops::{Deref, DerefMut},
-};
+use std::ops::{Deref, DerefMut};
 
 use bevy::{
     ecs::{
@@ -14,65 +11,11 @@ use bevy::{
 
 use crate::{
     chunks::{Chunk, InMap},
+    coords::{calculate_tile_coordinate, calculate_tile_index, max_tile_index, CoordIterator},
     maps::TileMap,
-    prelude::{calculate_tile_coordinate, calculate_tile_index, max_tile_index, CoordIterator},
 };
 
 use super::{InChunk, TileCoord};
-
-/// Borrowed types from a [TileMapQuery] needed to construct a [TileQuery]
-pub struct BorrowedTileQueries<'a, 'w: 'a, 's: 'a, Q, F, const N: usize>
-where
-    Q: QueryData + 'static,
-    F: QueryFilter + 'static,
-{
-    phantom: PhantomData<(&'a Q, &'w F, &'s Q)>,
-}
-
-impl<'a, 'w: 'a, 's: 'a, Q, F, const N: usize> BorrowedTileQueryTypes<'a>
-    for BorrowedTileQueries<'a, 'w, 's, Q, F, N>
-where
-    Q: QueryData + 'static,
-    F: QueryFilter + 'static,
-{
-    type TileQuery = &'a Query<'w, 's, Q, (F, With<InChunk>)>;
-
-    type ChunkQuery = &'a Query<'w, 's, &'static Chunk, With<InMap>>;
-
-    type Map = &'a TileMap<N>;
-}
-
-/// Mutable borrowed types from a [TileMapQuery] needed to construct a mutable [TileQuery]
-pub struct MutableBorrowedTileQueries<'a, 'w: 'a, 's: 'a, Q, F, const N: usize>
-where
-    Q: QueryData + 'static,
-    F: QueryFilter + 'static,
-{
-    phantom: PhantomData<(&'a Q, &'w F, &'s Q)>,
-}
-
-impl<'a, 'w: 'a, 's: 'a, Q, F, const N: usize> BorrowedTileQueryTypes<'a>
-    for MutableBorrowedTileQueries<'a, 'w, 's, Q, F, N>
-where
-    Q: QueryData + 'static,
-    F: QueryFilter + 'static,
-{
-    type TileQuery = &'a mut Query<'w, 's, Q, (F, With<InChunk>)>;
-
-    type ChunkQuery = &'a mut Query<'w, 's, &'static Chunk, With<InMap>>;
-
-    type Map = &'a TileMap<N>;
-}
-
-/// Describes the types used to construct a query, mainly needed to reduce code duplication.
-pub trait BorrowedTileQueryTypes<'a> {
-    /// Query for tiles.
-    type TileQuery;
-    /// Query for chunks.
-    type ChunkQuery;
-    /// The map used.
-    type Map;
-}
 
 /// Used to query individual tiles from a tile map.
 /// This query also implicitly queries chunks and maps
@@ -148,7 +91,8 @@ where
     Q: QueryData + 'static,
     F: QueryFilter + 'static,
 {
-    fn get_tile_entity(&self, tile_c: [isize; N]) -> Option<Entity> {
+    fn get_tile_entity(&self, tile_c: impl Into<[i32; N]>) -> Option<Entity> {
+        let tile_c = tile_c.into();
         let chunk_size = self.map.get_chunk_size();
         let chunk_id = self.map.get_from_tile(TileCoord::<N>(tile_c))?;
 
@@ -161,8 +105,9 @@ where
     /// Gets the readonly query item for the given tile.
     pub fn get_at(
         &self,
-        tile_c: [isize; N],
+        tile_c: impl Into<[i32; N]>,
     ) -> Option<<<Q as QueryData>::ReadOnly as WorldQuery>::Item<'_>> {
+        let tile_c = tile_c.into();
         let tile_e = self.get_tile_entity(tile_c)?;
         self.tile_q.get(tile_e).ok()
     }
@@ -172,8 +117,9 @@ where
     /// This function makes it possible to violate Rust's aliasing guarantees: please use responsibly.
     pub unsafe fn get_at_unchecked(
         &self,
-        tile_c: [isize; N],
+        tile_c: impl Into<[i32; N]>,
     ) -> Option<<Q as WorldQuery>::Item<'_>> {
+        let tile_c = tile_c.into();
         let tile_e = self.get_tile_entity(tile_c)?;
         self.tile_q.get_unchecked(tile_e).ok()
     }
@@ -182,16 +128,19 @@ where
     /// inclusive over `corner_2`
     pub fn iter_in(
         &self,
-        corner_1: [isize; N],
-        corner_2: [isize; N],
+        corner_1: impl Into<[i32; N]>,
+        corner_2: impl Into<[i32; N]>,
     ) -> TileQueryIter<'_, 'a, T, C, N> {
+        let corner_1 = corner_1.into();
+        let corner_2 = corner_2.into();
         TileQueryIter::new(self, corner_1, corner_2)
     }
 
     /// Iter all tiles in a given chunk.
     /// # Note
     /// The coordinates for this function are givne in chunk coordinates.
-    pub fn iter_in_chunk(&self, chunk_c: [isize; N]) -> TileQueryIter<'_, 'a, T, C, N> {
+    pub fn iter_in_chunk(&self, chunk_c: impl Into<[i32; N]>) -> TileQueryIter<'_, 'a, T, C, N> {
+        let chunk_c = chunk_c.into();
         let chunk_size = self.map.get_chunk_size();
         // Get corners of chunk
         let corner_1 = calculate_tile_coordinate(chunk_c, 0, chunk_size);
@@ -206,9 +155,11 @@ where
     /// The coordinates for this function are givne in chunk coordinates.
     pub fn iter_in_chunks(
         &mut self,
-        chunk_c_1: [isize; N],
-        chunk_c_2: [isize; N],
+        chunk_c_1: impl Into<[i32; N]>,
+        chunk_c_2: impl Into<[i32; N]>,
     ) -> TileQueryIter<'_, 'a, T, C, N> {
+        let chunk_c_1 = chunk_c_1.into();
+        let chunk_c_2 = chunk_c_2.into();
         let chunk_size = self.map.get_chunk_size();
         // Get corners of chunk
         let corner_1 = calculate_tile_coordinate(chunk_c_1, 0, chunk_size);
@@ -227,7 +178,10 @@ where
     F: QueryFilter + 'static,
 {
     /// Gets the query item for the given tile.
-    pub fn get_at_mut(&mut self, tile_c: [isize; N]) -> Option<<Q as WorldQuery>::Item<'_>> {
+    pub fn get_at_mut(
+        &mut self,
+        tile_c: impl Into<[i32; N]>,
+    ) -> Option<<Q as WorldQuery>::Item<'_>> {
         let tile_e = self.get_tile_entity(tile_c)?;
         self.tile_q.get_mut(tile_e).ok()
     }
@@ -237,9 +191,11 @@ where
     /// The coordinates for this function are givne in chunk coordinates.
     pub fn iter_in_chunks_mut(
         &mut self,
-        chunk_c_1: [isize; N],
-        chunk_c_2: [isize; N],
+        chunk_c_1: impl Into<[i32; N]>,
+        chunk_c_2: impl Into<[i32; N]>,
     ) -> TileQueryIterMut<'_, 'a, T, C, N> {
+        let chunk_c_1 = chunk_c_1.into();
+        let chunk_c_2 = chunk_c_2.into();
         let chunk_size = self.map.get_chunk_size();
         // Get corners of chunk
         let corner_1 = calculate_tile_coordinate(chunk_c_1, 0, chunk_size);
@@ -252,7 +208,11 @@ where
     /// Iter all tiles in a given chunk.
     /// # Note
     /// The coordinates for this function are givne in chunk coordinates.
-    pub fn iter_in_chunk_mut(&mut self, chunk_c: [isize; N]) -> TileQueryIterMut<'_, 'a, T, C, N> {
+    pub fn iter_in_chunk_mut(
+        &mut self,
+        chunk_c: impl Into<[i32; N]>,
+    ) -> TileQueryIterMut<'_, 'a, T, C, N> {
+        let chunk_c = chunk_c.into();
         let chunk_size = self.map.get_chunk_size();
         // Get corners of chunk
         let corner_1 = calculate_tile_coordinate(chunk_c, 0, chunk_size);
@@ -266,9 +226,11 @@ where
     /// inclusive over `corner_2`
     pub fn iter_in_mut(
         &mut self,
-        corner_1: [isize; N],
-        corner_2: [isize; N],
+        corner_1: impl Into<[i32; N]>,
+        corner_2: impl Into<[i32; N]>,
     ) -> TileQueryIterMut<'_, 'a, T, C, N> {
+        let corner_1 = corner_1.into();
+        let corner_2 = corner_2.into();
         TileQueryIterMut::new(self, corner_1, corner_2)
     }
 }
@@ -280,7 +242,7 @@ pub struct TileQueryIter<'i, 'a, T, C, const N: usize> {
 }
 
 impl<'i, 'a: 'i, T, C, const N: usize> TileQueryIter<'i, 'a, T, C, N> {
-    fn new(tile_q: &'i TileQuery<'a, T, C, N>, corner_1: [isize; N], corner_2: [isize; N]) -> Self {
+    fn new(tile_q: &'i TileQuery<'a, T, C, N>, corner_1: [i32; N], corner_2: [i32; N]) -> Self {
         Self {
             tile_q,
             coord_iter: CoordIterator::new(corner_1, corner_2),
@@ -327,11 +289,7 @@ pub struct TileQueryIterMut<'i, 'a, T, C, const N: usize> {
 }
 
 impl<'i, 'a: 'i, T, C, const N: usize> TileQueryIterMut<'i, 'a, T, C, N> {
-    fn new(
-        tile_q: &'i mut TileQuery<'a, T, C, N>,
-        corner_1: [isize; N],
-        corner_2: [isize; N],
-    ) -> Self {
+    fn new(tile_q: &'i mut TileQuery<'a, T, C, N>, corner_1: [i32; N], corner_2: [i32; N]) -> Self {
         Self {
             tile_q,
             coord_iter: CoordIterator::new(corner_1, corner_2),

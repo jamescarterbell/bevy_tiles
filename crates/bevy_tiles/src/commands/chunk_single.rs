@@ -4,7 +4,7 @@ use super::{insert_chunk, take_chunk_despawn_tiles};
 
 pub struct SpawnChunk<const N: usize = 2> {
     pub map_id: Entity,
-    pub chunk_c: [isize; N],
+    pub chunk_c: [i32; N],
     pub chunk_id: Entity,
 }
 
@@ -16,7 +16,7 @@ impl<const N: usize> Command for SpawnChunk<N> {
 
 pub struct DespawnChunk<const N: usize> {
     pub map_id: Entity,
-    pub chunk_c: [isize; N],
+    pub chunk_c: [i32; N],
 }
 
 impl<const N: usize> Command for DespawnChunk<N> {

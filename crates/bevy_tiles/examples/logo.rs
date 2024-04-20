@@ -1,5 +1,5 @@
 use bevy::{prelude::*, sprite::SpriteBundle, DefaultPlugins};
-use bevy_tiles::prelude::*;
+use bevy_tiles::{commands::TileCommandExt, tiles_2d::*, TilesPlugin};
 
 fn main() {
     App::new()
@@ -22,7 +22,7 @@ fn spawn(mut commands: Commands, asset_server: Res<AssetServer>) {
         transform: Transform::from_translation(Vec3::new(480.0, 32.0, 0.0)),
         ..Default::default()
     });
-    let mut map = commands.spawn_map::<2>(16, GameLayer);
+    let mut map = commands.spawn_map(16, GameLayer);
 
     let sprite_bundle = SpriteBundle {
         texture: block,
@@ -39,7 +39,7 @@ eeeee  eeee e    e e    e       eeee8 eeeee e     eeee  eeeee
     let logo = logo.split('\n').enumerate().flat_map(|(y, line)| {
         line.bytes().enumerate().filter_map(move |(x, byte)| {
             if byte == 56 || byte == 101 {
-                Some([x as isize, 6 - y as isize])
+                Some([x as i32, 6 - y as i32])
             } else {
                 None
             }
@@ -47,7 +47,7 @@ eeeee  eeee e    e e    e       eeee8 eeeee e     eeee  eeeee
     });
 
     // spawn a 10 * 10 room
-    map.spawn_tile_batch(logo.collect::<Vec<[isize; 2]>>(), move |_| {
+    map.spawn_tile_batch(logo.collect::<Vec<[i32; 2]>>(), move |_| {
         (Block, sprite_bundle.clone())
     });
 }
