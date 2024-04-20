@@ -43,7 +43,7 @@ fn spawn(mut commands: Commands, asset_server: Res<AssetServer>) {
 
     // spawn a player
     map.spawn_tile(
-        [0, 0],
+        IVec2::ZERO,
         (
             Character,
             SpriteBundle {

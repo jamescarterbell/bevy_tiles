@@ -88,7 +88,9 @@ pub struct CoordIterator<const N: usize> {
 
 impl<const N: usize> CoordIterator<N> {
     /// Create an iterator that iterates through each point created by the bounding of two corners.
-    pub fn new(mut corner_1: [i32; N], mut corner_2: [i32; N]) -> Self {
+    pub fn new(corner_1: impl Into<[i32; N]>, corner_2: impl Into<[i32; N]>) -> Self {
+        let mut corner_1 = corner_1.into();
+        let mut corner_2 = corner_2.into();
         for i in 0..N {
             if corner_1[i] > corner_2[i] {
                 std::mem::swap(&mut corner_1[i], &mut corner_2[i]);

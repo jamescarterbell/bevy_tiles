@@ -283,6 +283,9 @@ where
 ///# }
 /// ```
 /// Iterates over all the tiles in a region.
+// DO TO UNSAFE DATA ACCESS INSIDE THIS ITERATOR
+// DO NOT CONSTRUCT THIS WITH ARBITRARY TILE ACCESSES
+// ONLY USE COORD ITERATORS WHICH ENSURE A GIVEN COORD IS RETURNED ONCE.
 pub struct TileQueryIterMut<'i, 'a, T, C, const N: usize> {
     coord_iter: CoordIterator<N>,
     tile_q: &'i TileQuery<'a, T, C, N>,

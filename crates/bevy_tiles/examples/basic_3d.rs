@@ -69,7 +69,7 @@ fn spawn(
 
     // spawn a player
     tile_commands.spawn_tile(
-        [0, 0, 0],
+        IVec3::ZERO,
         (
             Character,
             PbrBundle {
