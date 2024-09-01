@@ -12,7 +12,7 @@ use bevy::app::Plugin;
 /// Provides chunk level utilities.
 pub mod chunks;
 /// Provides commands for interacting with tilemaps.
-//pub mod commands;
+pub mod commands;
 /// Provides helper functions for interacting with coordiantes.
 pub mod coords;
 /// Provides map level utilities.
@@ -41,14 +41,14 @@ pub mod tiles_2d {
     /// 2d [crate::chunks::ChunkMapQuery] alias.
     pub type ChunkMapQuery<'w, 's, Q, F = ()> = crate::chunks::ChunkMapQuery<'w, 's, Q, F, 2>;
 
-    // /// 2d [crate::commands::TileMapCommands] alias.
-    // pub type TileMapCommands<'a, 'w, 's, const N: usize> =
-    //     crate::commands::TileMapCommands<'a, 'w, 's, 2>;
+    /// 2d [crate::commands::TileMapCommands] alias.
+    pub type TileMapCommands<'a, 'w, 's, const N: usize> =
+        crate::commands::TileMapCommands<'a, 'w, 's, 2>;
 
-    // /// 2d [crate::commands::TileCommandExt] alias.
-    // pub trait TileCommandExt<'w, 's>: crate::commands::TileCommandExt<'w, 's, 2> {}
+    /// 2d [crate::commands::TileCommandExt] alias.
+    pub trait TileCommandExt<'w, 's>: crate::commands::TileCommandExt<'w, 's, 2> {}
 
-    // impl<'w, 's> TileCommandExt<'w, 's> for Commands<'w, 's> {}
+    impl<'w, 's> TileCommandExt<'w, 's> for Commands<'w, 's> {}
 }
 
 /// Helper aliases for working with 2d grids
@@ -67,14 +67,14 @@ pub mod tiles_3d {
     /// 3d [crate::chunks::ChunkMapQuery] alias.
     pub type ChunkMapQuery<'w, 's, Q, F = ()> = crate::chunks::ChunkMapQuery<'w, 's, Q, F, 3>;
 
-    // /// 3d [crate::commands::TileMapCommands] alias.
-    // pub type TileMapCommands<'a, 'w, 's, const N: usize> =
-    //     crate::commands::TileMapCommands<'a, 'w, 's, 3>;
+    /// 3d [crate::commands::TileMapCommands] alias.
+    pub type TileMapCommands<'a, 'w, 's, const N: usize> =
+        crate::commands::TileMapCommands<'a, 'w, 's, 3>;
 
-    // /// 3d [crate::commands::TileCommandExt] alias.
-    // pub trait TileCommandExt<'w, 's>: crate::commands::TileCommandExt<'w, 's, 3> {}
+    /// 3d [crate::commands::TileCommandExt] alias.
+    pub trait TileCommandExt<'w, 's>: crate::commands::TileCommandExt<'w, 's, 3> {}
 
-    // impl<'w, 's> TileCommandExt<'w, 's> for Commands<'w, 's> {}
+    impl<'w, 's> TileCommandExt<'w, 's> for Commands<'w, 's> {}
 }
 
 /// Adds Tiles dependencies to the App.

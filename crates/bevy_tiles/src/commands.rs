@@ -37,7 +37,7 @@ impl<'a, 'w, 's, const N: usize> TileMapCommands<'a, 'w, 's, N> {
     pub fn spawn_tile(
         &mut self,
         tile_c: impl Into<[i32; N]>,
-        bundle: impl Bundle,
+        bundle: impl TileBundle,
     ) -> EntityCommands<'_> {
         let tile_c = tile_c.into();
         self.commands.spawn_tile(self.map_id, tile_c, bundle)
@@ -272,15 +272,13 @@ impl<'w, 's, const N: usize> TileCommandExt<'w, 's, N> for Commands<'w, 's> {
         &mut self,
         map_id: Entity,
         tile_c: [i32; N],
-        bundle: impl Bundle,
+        bundle: impl TileBundle,
     ) -> EntityCommands<'_> {
-        let tile_id = self.spawn(bundle).id();
         self.add(SpawnTile::<N> {
             map_id,
             tile_c,
-            tile_id,
+            bundle,
         });
-        self.entity(tile_id)
     }
 
     /// Spawns tiles from the given iterator using the given function.
@@ -495,13 +493,20 @@ pub fn insert_tile_into_map<const N: usize>(
     world.get_entity_mut(chunk_id).unwrap().insert(chunk);
 }
 
-/// Inserts a tile into the world.
-pub fn insert_tile<const N: usize>(
+/// Inserts a tile into the world, returning the old value if it existed already.
+pub fn insert_tile<B, const N: usize>(
     world: &mut World,
     map_id: Entity,
     tile_c: [i32; N],
-    tile_id: Entity,
-) {
+    bundle: B,
+) -> Option<B>{
+    let Some(map_e) = world.get_entity_mut(map_id) else {
+        return;
+    };
+    let Some(map) = map_e.get_mut::<TileMap<N>>() {
+        return;
+    }
+    
     // Take the map out and get the id to reinsert it
     let mut map = remove_map::<N>(world, map_id)
         .unwrap_or_else(|| panic!("Could not find tile map with id '{:?}'", map_id));

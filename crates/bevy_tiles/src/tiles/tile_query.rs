@@ -1,21 +1,14 @@
-use bevy::{
-    ecs::{
-        entity::Entity,
-        query::{QueryData, With, WorldQuery},
-        system::SystemParam,
-    },
-    prelude::Query,
-};
+use bevy::ecs::{entity::Entity, query::With, system::SystemParam};
 
 use crate::{
-    chunks::{Chunk, InMap},
-    coords::{calculate_tile_index, CoordIterator},
-    maps::TileMap,
+    chunks::{ChunkMapQuery, ChunkQuery, InMap},
+    coords::{
+        calculate_chunk_coordinate, calculate_tile_coordinate, calculate_tile_index,
+        max_tile_index, CoordIterator,
+    },
     queries::{TileData, TileDataQuery},
-    utils::{Owm, Rop},
+    utils::Rop,
 };
-
-use super::TileCoord;
 
 /// Used to query individual tiles from a tile map.
 /// This query also implicitly queries chunks and maps
@@ -25,8 +18,7 @@ pub struct TileMapQuery<'w, 's, Q, const N: usize = 2>
 where
     Q: TileData + 'static,
 {
-    chunk_q: Query<'w, 's, (<Q as TileDataQuery>::Source, &'static Chunk), With<InMap>>,
-    map_q: Query<'w, 's, &'static TileMap<N>>,
+    chunk_q: ChunkMapQuery<'w, 's, <Q as TileDataQuery>::Source, With<InMap>, N>,
 }
 
 impl<'w, 's, Q, const N: usize> TileMapQuery<'w, 's, Q, N>
@@ -35,22 +27,16 @@ where
 {
     /// Gets the query for a given map.
     pub fn get_map(&self, map_id: Entity) -> Option<TileQuery<'_, '_, 's, Q::ReadOnly, N>> {
-        let map = self.map_q.get(map_id).ok()?;
+        let chunk_q = self.chunk_q.get_map(map_id)?;
 
-        Some(TileQuery {
-            chunk_q: Owm::Owned(self.chunk_q.to_readonly()),
-            map,
-        })
+        Some(TileQuery { chunk_q })
     }
 
     /// Gets the query for a given map.
     pub fn get_map_mut(&mut self, map_id: Entity) -> Option<TileQuery<'_, 'w, 's, Q, N>> {
-        let map = self.map_q.get(map_id).ok()?;
+        let chunk_q = self.chunk_q.get_map_mut(map_id)?;
 
-        Some(TileQuery {
-            chunk_q: Owm::Borrowed(&mut self.chunk_q),
-            map,
-        })
+        Some(TileQuery { chunk_q })
     }
 }
 
@@ -59,8 +45,7 @@ pub struct TileQuery<'a, 'w, 's, Q, const N: usize = 2>
 where
     Q: TileData + 'static,
 {
-    chunk_q: Owm<'a, Query<'w, 's, (<Q as TileDataQuery>::Source, &'static Chunk), With<InMap>>>,
-    map: &'a TileMap<N>,
+    chunk_q: ChunkQuery<'a, 'w, 's, <Q as TileDataQuery>::Source, With<InMap>, N>,
 }
 
 impl<'a, 'w, 's, Q, const N: usize> TileQuery<'a, 'w, 's, Q, N>
@@ -70,34 +55,8 @@ where
     /// Get the readonly variant of this query.
     pub fn to_readonly(&self) -> TileQuery<'_, '_, 's, Q::ReadOnly, N> {
         TileQuery {
-            chunk_q: Owm::Owned(self.chunk_q.to_readonly()),
-            map: self.map,
+            chunk_q: self.chunk_q.to_readonly(),
         }
-    }
-
-    fn get_chunk_data(
-        &self,
-        tile_c: [i32; N],
-    ) -> Option<<<<Q as TileDataQuery>::Source as QueryData>::ReadOnly as WorldQuery>::Item<'_>>
-    {
-        let chunk_id = self.map.get_from_tile(TileCoord::<N>(tile_c))?;
-        self.chunk_q.get(chunk_id).ok().map(|r| r.0)
-    }
-
-    fn get_chunk_data_mut(
-        &mut self,
-        tile_c: [i32; N],
-    ) -> Option<<<Q as TileDataQuery>::Source as WorldQuery>::Item<'_>> {
-        let chunk_id = self.map.get_from_tile(TileCoord::<N>(tile_c))?;
-        self.chunk_q.get_mut(chunk_id).ok().map(|r| r.0)
-    }
-
-    unsafe fn get_chunk_data_unchecked(
-        &self,
-        tile_c: [i32; N],
-    ) -> Option<<<Q as TileDataQuery>::Source as WorldQuery>::Item<'_>> {
-        let chunk_id = self.map.get_from_tile(TileCoord::<N>(tile_c))?;
-        self.chunk_q.get_unchecked(chunk_id).ok().map(|r| r.0)
     }
 
     /// Gets the readonly query item for the given tile.
@@ -106,10 +65,24 @@ where
         tile_c: impl Into<[i32; N]>,
     ) -> Option<<<Q as TileData>::ReadOnly as TileDataQuery>::Item<'_>> {
         let tile_c = tile_c.into();
-        let tile_i = calculate_tile_index(tile_c, self.map.get_chunk_size());
-        let tile_e = self.get_chunk_data(tile_c)?;
+        let tile_i = calculate_tile_index(tile_c, self.chunk_q.map.get_chunk_size());
+        let chunk_c = calculate_chunk_coordinate(tile_c, self.chunk_q.map.get_chunk_size());
+        let tile_e = self.chunk_q.get_at(chunk_c)?;
 
         <<Q as TileData>::ReadOnly as TileDataQuery>::get(tile_e, tile_i)
+    }
+
+    /// Gets the query item for the given tile.
+    pub fn get_at_mut(
+        &mut self,
+        tile_c: impl Into<[i32; N]>,
+    ) -> Option<<Q as TileDataQuery>::Item<'_>> {
+        let tile_c = tile_c.into();
+        let tile_i = calculate_tile_index(tile_c, self.chunk_q.map.get_chunk_size());
+        let chunk_c = calculate_chunk_coordinate(tile_c, self.chunk_q.map.get_chunk_size());
+        let tile_e = self.chunk_q.get_at_mut(chunk_c)?;
+
+        Q::get(tile_e, tile_i)
     }
 
     /// Gets the query item for the given tile.
@@ -120,8 +93,9 @@ where
         tile_c: impl Into<[i32; N]>,
     ) -> Option<<Q as TileDataQuery>::Item<'_>> {
         let tile_c = tile_c.into();
-        let tile_i = calculate_tile_index(tile_c, self.map.get_chunk_size());
-        let tile_e = self.get_chunk_data_unchecked(tile_c)?;
+        let tile_i = calculate_tile_index(tile_c, self.chunk_q.map.get_chunk_size());
+        let chunk_c = calculate_chunk_coordinate(tile_c, self.chunk_q.map.get_chunk_size());
+        let tile_e = self.chunk_q.get_at_unchecked(chunk_c)?;
 
         Q::get(tile_e, tile_i)
     }
@@ -139,87 +113,6 @@ where
         unsafe { TileQueryIter::from_owned(self.to_readonly(), corner_1, corner_2) }
     }
 
-    // /// Iter all tiles in a given chunk.
-    // /// # Note
-    // /// The coordinates for this function are givne in chunk coordinates.
-    // pub fn iter_in_chunk(&self, chunk_c: impl Into<[i32; N]>) -> TileQueryIter<'_, 'a, T, C, N> {
-    //     let chunk_c = chunk_c.into();
-    //     let chunk_size = self.map.get_chunk_size();
-    //     // Get corners of chunk
-    //     let corner_1 = calculate_tile_coordinate(chunk_c, 0, chunk_size);
-    //     let corner_2 =
-    //         calculate_tile_coordinate(chunk_c, max_tile_index::<N>(chunk_size), chunk_size);
-    //     // Create tile iter
-    //     TileQueryIter::new(self, corner_1, corner_2)
-    // }
-
-    // /// Iter all tiles in the chunks in the given range.
-    // /// # Note
-    // /// The coordinates for this function are givne in chunk coordinates.
-    // pub fn iter_in_chunks(
-    //     &mut self,
-    //     chunk_c_1: impl Into<[i32; N]>,
-    //     chunk_c_2: impl Into<[i32; N]>,
-    // ) -> TileQueryIter<'_, 'a, 'w, 's, T, C, N> {
-    //     let chunk_c_1 = chunk_c_1.into();
-    //     let chunk_c_2 = chunk_c_2.into();
-    //     let chunk_size = self.map.get_chunk_size();
-    //     // Get corners of chunk
-    //     let corner_1 = calculate_tile_coordinate(chunk_c_1, 0, chunk_size);
-    //     let corner_2 =
-    //         calculate_tile_coordinate(chunk_c_2, max_tile_index::<N>(chunk_size), chunk_size);
-    //     // Create tile iter
-    //     TileQueryIter::new(self, corner_1, corner_2)
-    // }
-
-    /// Gets the query item for the given tile.
-    pub fn get_at_mut(
-        &mut self,
-        tile_c: impl Into<[i32; N]>,
-    ) -> Option<<Q as TileDataQuery>::Item<'_>> {
-        let tile_c = tile_c.into();
-        let tile_i = calculate_tile_index(tile_c, self.map.get_chunk_size());
-        let tile_e = self.get_chunk_data_mut(tile_c)?;
-
-        Q::get(tile_e, tile_i)
-    }
-
-    // /// Iter all tiles in the chunks in the given range.
-    // /// # Note
-    // /// The coordinates for this function are givne in chunk coordinates.
-    // pub fn iter_in_chunks_mut(
-    //     &mut self,
-    //     chunk_c_1: impl Into<[i32; N]>,
-    //     chunk_c_2: impl Into<[i32; N]>,
-    // ) -> TileQueryIterMut<'_, 'a, T, C, N> {
-    //     let chunk_c_1 = chunk_c_1.into();
-    //     let chunk_c_2 = chunk_c_2.into();
-    //     let chunk_size = self.map.get_chunk_size();
-    //     // Get corners of chunk
-    //     let corner_1 = calculate_tile_coordinate(chunk_c_1, 0, chunk_size);
-    //     let corner_2 =
-    //         calculate_tile_coordinate(chunk_c_2, max_tile_index::<N>(chunk_size), chunk_size);
-
-    //     TileQueryIterMut::new(self, corner_1, corner_2)
-    // }
-
-    // /// Iter all tiles in a given chunk.
-    // /// # Note
-    // /// The coordinates for this function are givne in chunk coordinates.
-    // pub fn iter_in_chunk_mut(
-    //     &mut self,
-    //     chunk_c: impl Into<[i32; N]>,
-    // ) -> TileQueryIterMut<'_, 'a, T, C, N> {
-    //     let chunk_c = chunk_c.into();
-    //     let chunk_size = self.map.get_chunk_size();
-    //     // Get corners of chunk
-    //     let corner_1 = calculate_tile_coordinate(chunk_c, 0, chunk_size);
-    //     let corner_2 =
-    //         calculate_tile_coordinate(chunk_c, max_tile_index::<N>(chunk_size), chunk_size);
-
-    //     TileQueryIterMut::new(self, corner_1, corner_2)
-    // }
-
     /// Iterate over all the tiles in a given space, starting at `corner_1`
     /// inclusive over `corner_2`
     pub fn iter_in_mut(
@@ -231,6 +124,78 @@ where
         let corner_2 = corner_2.into();
         // SAFETY: This thing is uses manual mem management
         unsafe { TileQueryIter::from_ref(self, corner_1, corner_2) }
+    }
+
+    /// Iter all tiles in a given chunk.
+    /// # Note
+    /// The coordinates for this function are givne in chunk coordinates.
+    pub fn iter_in_chunk(
+        &self,
+        chunk_c: impl Into<[i32; N]>,
+    ) -> TileQueryIter<'_, '_, '_, 's, Q::ReadOnly, N> {
+        let chunk_c = chunk_c.into();
+        let chunk_size = self.chunk_q.map.get_chunk_size();
+        // Get corners of chunk
+        let corner_1 = calculate_tile_coordinate(chunk_c, 0, chunk_size);
+        let corner_2 =
+            calculate_tile_coordinate(chunk_c, max_tile_index::<N>(chunk_size), chunk_size);
+        // Todo: just read the vector directly essentially
+        self.iter_in(corner_1, corner_2)
+    }
+
+    /// Iter all tiles in the chunks in the given range.
+    /// # Note
+    /// The coordinates for this function are givne in chunk coordinates.
+    pub fn iter_in_chunks(
+        &mut self,
+        chunk_c_1: impl Into<[i32; N]>,
+        chunk_c_2: impl Into<[i32; N]>,
+    ) -> TileQueryIter<'_, '_, '_, 's, Q::ReadOnly, N> {
+        let chunk_c_1 = chunk_c_1.into();
+        let chunk_c_2 = chunk_c_2.into();
+        let chunk_size = self.chunk_q.map.get_chunk_size();
+        // Get corners of chunk
+        let corner_1 = calculate_tile_coordinate(chunk_c_1, 0, chunk_size);
+        let corner_2 =
+            calculate_tile_coordinate(chunk_c_2, max_tile_index::<N>(chunk_size), chunk_size);
+        // Todo: just read the vector directly essentially
+        self.iter_in(corner_1, corner_2)
+    }
+
+    /// Iter all tiles in the chunks in the given range.
+    /// # Note
+    /// The coordinates for this function are givne in chunk coordinates.
+    pub fn iter_in_chunks_mut(
+        &mut self,
+        chunk_c_1: impl Into<[i32; N]>,
+        chunk_c_2: impl Into<[i32; N]>,
+    ) -> TileQueryIter<'_, 'a, 'w, 's, Q, N> {
+        let chunk_c_1 = chunk_c_1.into();
+        let chunk_c_2 = chunk_c_2.into();
+        let chunk_size = self.chunk_q.map.get_chunk_size();
+        // Get corners of chunk
+        let corner_1 = calculate_tile_coordinate(chunk_c_1, 0, chunk_size);
+        let corner_2 =
+            calculate_tile_coordinate(chunk_c_2, max_tile_index::<N>(chunk_size), chunk_size);
+
+        self.iter_in_mut(corner_1, corner_2)
+    }
+
+    /// Iter all tiles in a given chunk.
+    /// # Note
+    /// The coordinates for this function are givne in chunk coordinates.
+    pub fn iter_in_chunk_mut(
+        &mut self,
+        chunk_c: impl Into<[i32; N]>,
+    ) -> TileQueryIter<'_, 'a, 'w, 's, Q, N> {
+        let chunk_c = chunk_c.into();
+        let chunk_size = self.chunk_q.map.get_chunk_size();
+        // Get corners of chunk
+        let corner_1 = calculate_tile_coordinate(chunk_c, 0, chunk_size);
+        let corner_2 =
+            calculate_tile_coordinate(chunk_c, max_tile_index::<N>(chunk_size), chunk_size);
+
+        self.iter_in_mut(corner_1, corner_2)
     }
 }
 

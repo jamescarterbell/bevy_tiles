@@ -20,7 +20,7 @@ opt-level = 1
 opt-level = 3
 
 [workspace.dependencies]
-bevy = {version = "0.13.0", default-features = false}
+bevy = {git = "https://github.com/bevyengine/bevy.git", branch = "main", default-features = false}
 rstest = "0.18.2"
 bimap = "0.6.3"
 rand = "0.8.5"

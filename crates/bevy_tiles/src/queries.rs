@@ -64,3 +64,9 @@ impl<'w, T: Send + Sync + 'static> TileDataQuery for &'w mut T {
         source.into_inner().get_mut(index)
     }
 }
+
+// pub unsafe trait TileBundle: Send + Sync + 'static {
+//     type Source: QueryData;
+
+//     fn get_component_ids(components: &Components, ids: &mut impl FnMut(Option<ComponentId>));
+// }

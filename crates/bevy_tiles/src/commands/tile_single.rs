@@ -2,10 +2,14 @@ use bevy::ecs::{entity::Entity, system::Command, world::World};
 
 use super::{insert_tile, insert_tile_into_map, remove_map, take_tile, take_tile_from_map};
 
-pub struct SpawnTile<const N: usize = 2> {
+pub struct SpawnTile<B, const N: usize = 2>
+where
+    B: TileBundle,
+{
     pub map_id: Entity,
     pub tile_c: [i32; N],
     pub tile_id: Entity,
+    pub bundle: B,
 }
 
 impl<const N: usize> Command for SpawnTile<N> {
