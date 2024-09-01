@@ -37,15 +37,25 @@ impl From<IVec3> for ChunkCoord<3> {
 }
 
 /// Holds handles to all the tiles in a chunk.
-#[derive(Component, Debug)]
-pub struct Chunk(pub(crate) Vec<Option<Entity>>);
+#[derive(Default, Component, Debug)]
+pub struct Chunk;
 
-impl Chunk {
+/// Holds data for tiles in chunk
+#[derive(Component, Debug)]
+pub struct ChunkData<T>(pub(crate) Vec<Option<T>>);
+
+impl<T> ChunkData<T> {
     pub(crate) fn new(chunk_size: usize) -> Self {
-        Self(vec![None; chunk_size])
+        let mut v = Vec::new();
+        v.resize_with(chunk_size, || None);
+        Self(v)
     }
 
-    pub(crate) fn get(&self, tile_i: usize) -> Option<Entity> {
-        self.0.get(tile_i).cloned().flatten()
+    pub(crate) fn get(&self, tile_i: usize) -> Option<&T> {
+        self.0.get(tile_i).and_then(|f| f.as_ref())
+    }
+
+    pub(crate) fn get_mut(&mut self, tile_i: usize) -> Option<&mut T> {
+        self.0.get_mut(tile_i).and_then(|f| f.as_mut())
     }
 }

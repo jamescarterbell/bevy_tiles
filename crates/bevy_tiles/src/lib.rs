@@ -12,13 +12,18 @@ use bevy::app::Plugin;
 /// Provides chunk level utilities.
 pub mod chunks;
 /// Provides commands for interacting with tilemaps.
-pub mod commands;
+//pub mod commands;
 /// Provides helper functions for interacting with coordiantes.
 pub mod coords;
 /// Provides map level utilities.
 pub mod maps;
+/// Provides traits for accessing tile data.
+pub mod queries;
 /// Provides tile level utilities.
 pub mod tiles;
+
+/// Cross library utilities.
+mod utils;
 
 /// Helper aliases for working with 2d grids
 pub mod tiles_2d {
@@ -28,7 +33,7 @@ pub mod tiles_2d {
     pub type TileCoord = crate::tiles::TileCoord<2>;
 
     /// 2d [crate::tiles::TileMapQuery] alias.
-    pub type TileMapQuery<'w, 's, Q, F = ()> = crate::tiles::TileMapQuery<'w, 's, Q, F, 2>;
+    pub type TileMapQuery<'w, 's, Q> = crate::tiles::TileMapQuery<'w, 's, Q, 2>;
 
     /// 2d [crate::chunks::ChunkCoord] alias.
     pub type ChunkCoord = crate::chunks::ChunkCoord<2>;
@@ -36,14 +41,14 @@ pub mod tiles_2d {
     /// 2d [crate::chunks::ChunkMapQuery] alias.
     pub type ChunkMapQuery<'w, 's, Q, F = ()> = crate::chunks::ChunkMapQuery<'w, 's, Q, F, 2>;
 
-    /// 2d [crate::commands::TileMapCommands] alias.
-    pub type TileMapCommands<'a, 'w, 's, const N: usize> =
-        crate::commands::TileMapCommands<'a, 'w, 's, 2>;
+    // /// 2d [crate::commands::TileMapCommands] alias.
+    // pub type TileMapCommands<'a, 'w, 's, const N: usize> =
+    //     crate::commands::TileMapCommands<'a, 'w, 's, 2>;
 
-    /// 2d [crate::commands::TileCommandExt] alias.
-    pub trait TileCommandExt<'w, 's>: crate::commands::TileCommandExt<'w, 's, 2> {}
+    // /// 2d [crate::commands::TileCommandExt] alias.
+    // pub trait TileCommandExt<'w, 's>: crate::commands::TileCommandExt<'w, 's, 2> {}
 
-    impl<'w, 's> TileCommandExt<'w, 's> for Commands<'w, 's> {}
+    // impl<'w, 's> TileCommandExt<'w, 's> for Commands<'w, 's> {}
 }
 
 /// Helper aliases for working with 2d grids
@@ -54,7 +59,7 @@ pub mod tiles_3d {
     pub type TileCoord = crate::tiles::TileCoord<3>;
 
     /// 3d [crate::tiles::TileMapQuery] alias.
-    pub type TileMapQuery<'w, 's, Q, F = ()> = crate::tiles::TileMapQuery<'w, 's, Q, F, 3>;
+    pub type TileMapQuery<'w, 's, Q> = crate::tiles::TileMapQuery<'w, 's, Q, 3>;
 
     /// 3d [crate::chunks::ChunkCoord] alias.
     pub type ChunkCoord = crate::chunks::ChunkCoord<3>;
@@ -62,14 +67,14 @@ pub mod tiles_3d {
     /// 3d [crate::chunks::ChunkMapQuery] alias.
     pub type ChunkMapQuery<'w, 's, Q, F = ()> = crate::chunks::ChunkMapQuery<'w, 's, Q, F, 3>;
 
-    /// 3d [crate::commands::TileMapCommands] alias.
-    pub type TileMapCommands<'a, 'w, 's, const N: usize> =
-        crate::commands::TileMapCommands<'a, 'w, 's, 3>;
+    // /// 3d [crate::commands::TileMapCommands] alias.
+    // pub type TileMapCommands<'a, 'w, 's, const N: usize> =
+    //     crate::commands::TileMapCommands<'a, 'w, 's, 3>;
 
-    /// 3d [crate::commands::TileCommandExt] alias.
-    pub trait TileCommandExt<'w, 's>: crate::commands::TileCommandExt<'w, 's, 3> {}
+    // /// 3d [crate::commands::TileCommandExt] alias.
+    // pub trait TileCommandExt<'w, 's>: crate::commands::TileCommandExt<'w, 's, 3> {}
 
-    impl<'w, 's> TileCommandExt<'w, 's> for Commands<'w, 's> {}
+    // impl<'w, 's> TileCommandExt<'w, 's> for Commands<'w, 's> {}
 }
 
 /// Adds Tiles dependencies to the App.
