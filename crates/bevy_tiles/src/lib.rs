@@ -22,9 +22,6 @@ pub mod queries;
 /// Provides tile level utilities.
 pub mod tiles;
 
-/// Cross library utilities.
-mod utils;
-
 /// Helper aliases for working with 2d grids
 pub mod tiles_2d {
     use bevy::ecs::system::Commands;

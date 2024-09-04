@@ -7,7 +7,6 @@ use crate::{
         max_tile_index, CoordIterator,
     },
     queries::{TileData, TileDataQuery},
-    utils::Rop,
 };
 
 /// Used to query individual tiles from a tile map.
@@ -59,6 +58,13 @@ where
         }
     }
 
+    /// Get the readonly variant of this query.
+    pub fn reborrow(&self) -> TileQuery<'_, '_, 's, Q::ReadOnly, N> {
+        TileQuery {
+            chunk_q: self.chunk_q.reborrow(),
+        }
+    }
+
     /// Gets the readonly query item for the given tile.
     pub fn get_at(
         &self,
@@ -106,7 +112,7 @@ where
         &self,
         corner_1: impl Into<[i32; N]>,
         corner_2: impl Into<[i32; N]>,
-    ) -> TileQueryIter<'_, '_, '_, 's, Q::ReadOnly, N> {
+    ) -> TileQueryIter<'_, '_, 's, Q::ReadOnly, N> {
         let corner_1 = corner_1.into();
         let corner_2 = corner_2.into();
         // SAFETY: This thing is uses manual mem management
@@ -119,7 +125,7 @@ where
         &mut self,
         corner_1: impl Into<[i32; N]>,
         corner_2: impl Into<[i32; N]>,
-    ) -> TileQueryIter<'_, 'a, 'w, 's, Q, N> {
+    ) -> TileQueryIter<'a, 'w, 's, Q, N> {
         let corner_1 = corner_1.into();
         let corner_2 = corner_2.into();
         // SAFETY: This thing is uses manual mem management
@@ -132,7 +138,7 @@ where
     pub fn iter_in_chunk(
         &self,
         chunk_c: impl Into<[i32; N]>,
-    ) -> TileQueryIter<'_, '_, '_, 's, Q::ReadOnly, N> {
+    ) -> TileQueryIter<'_, '_, 's, Q::ReadOnly, N> {
         let chunk_c = chunk_c.into();
         let chunk_size = self.chunk_q.map.get_chunk_size();
         // Get corners of chunk
@@ -150,7 +156,7 @@ where
         &mut self,
         chunk_c_1: impl Into<[i32; N]>,
         chunk_c_2: impl Into<[i32; N]>,
-    ) -> TileQueryIter<'_, '_, '_, 's, Q::ReadOnly, N> {
+    ) -> TileQueryIter<'_, '_, 's, Q::ReadOnly, N> {
         let chunk_c_1 = chunk_c_1.into();
         let chunk_c_2 = chunk_c_2.into();
         let chunk_size = self.chunk_q.map.get_chunk_size();
@@ -169,7 +175,7 @@ where
         &mut self,
         chunk_c_1: impl Into<[i32; N]>,
         chunk_c_2: impl Into<[i32; N]>,
-    ) -> TileQueryIter<'_, 'a, 'w, 's, Q, N> {
+    ) -> TileQueryIter<'a, 'w, 's, Q, N> {
         let chunk_c_1 = chunk_c_1.into();
         let chunk_c_2 = chunk_c_2.into();
         let chunk_size = self.chunk_q.map.get_chunk_size();
@@ -187,7 +193,7 @@ where
     pub fn iter_in_chunk_mut(
         &mut self,
         chunk_c: impl Into<[i32; N]>,
-    ) -> TileQueryIter<'_, 'a, 'w, 's, Q, N> {
+    ) -> TileQueryIter<'a, 'w, 's, Q, N> {
         let chunk_c = chunk_c.into();
         let chunk_size = self.chunk_q.map.get_chunk_size();
         // Get corners of chunk
@@ -204,51 +210,40 @@ where
 // the readonly query by making the TileQueryIter own it as a reference.
 
 /// Iterates over all the tiles in a region.
-pub struct TileQueryIter<'i, 'a, 'w, 's, Q, const N: usize>
+pub struct TileQueryIter<'a, 'w, 's, Q, const N: usize>
 where
     Q: TileData + 'static,
 {
     coord_iter: CoordIterator<N>,
-    tile_q: Rop<'i, TileQuery<'a, 'w, 's, Q, N>>,
+    tile_q: TileQuery<'a, 'w, 's, Q, N>,
 }
-impl<'i, 'a, 'w, 's, Q, const N: usize> TileQueryIter<'i, 'a, 'w, 's, Q, N>
+impl<'a, 'w, 's, Q, const N: usize> TileQueryIter<'a, 'w, 's, Q, N>
 where
     Q: TileData + 'static,
 {
-    unsafe fn from_ref(
-        tile_q: &'i TileQuery<'a, 'w, 's, Q, N>,
-        corner_1: [i32; N],
-        corner_2: [i32; N],
-    ) -> Self {
-        Self {
-            tile_q: Rop::from_ref(tile_q),
-            coord_iter: CoordIterator::new(corner_1, corner_2),
-        }
-    }
-
     unsafe fn from_owned(
         tile_q: TileQuery<'a, 'w, 's, Q, N>,
         corner_1: [i32; N],
         corner_2: [i32; N],
     ) -> Self {
         Self {
-            tile_q: Rop::from_owned(tile_q),
+            tile_q,
             coord_iter: CoordIterator::new(corner_1, corner_2),
         }
     }
 }
 
-impl<'i, 'a, 'w, 's, Q, const N: usize> Iterator for TileQueryIter<'i, 'a, 'w, 's, Q, N>
+impl<'a, 'w, 's, Q, const N: usize> Iterator for TileQueryIter<'a, 'w, 's, Q, N>
 where
     Q: TileData + 'static,
 {
-    type Item = <Q as TileDataQuery>::Item<'i>;
+    type Item = <Q as TileDataQuery>::Item<'w>;
 
     #[allow(clippy::while_let_on_iterator)]
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(target) = self.coord_iter.next() {
             // SAFETY: It might not be
-            let tile = unsafe { self.tile_q.get().get_at_unchecked(target) };
+            let tile = unsafe { self.tile_q.get_at_unchecked(target) };
             if tile.is_some() {
                 return tile;
             }
