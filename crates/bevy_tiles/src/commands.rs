@@ -14,19 +14,20 @@ use crate::{
 
 use bevy::{
     ecs::system::EntityCommands,
-    prelude::{Bundle, Commands, Component, Entity, EntityWorldMut, World},
+    prelude::{
+        BuildChildren, Bundle, Commands, Component, DespawnRecursiveExt, Entity, EntityWorldMut,
+        World,
+    },
     utils::{hashbrown::hash_map::Entry, HashMap},
 };
 
 // mod chunk_batch;
-// mod chunk_single;
-// mod map;
+mod chunk_single;
 // mod tile_batch;
 mod tile_single;
 
 // use chunk_batch::*;
-// use chunk_single::*;
-// use map::*;
+use chunk_single::*;
 // use tile_batch::*;
 use tile_single::*;
 
@@ -73,58 +74,11 @@ impl<'a, 'w, 's, const N: usize> TileMapCommands<'a, 'w, 's, N> {
     //     self
     // }
 
-    // /// Moves a tile from one coordinate to another, overwriting and despawning any tile in the new coordinate.
-    // pub fn move_tile(
-    //     &mut self,
-    //     old_c: impl Into<[i32; N]>,
-    //     new_c: impl Into<[i32; N]>,
-    // ) -> &mut Self {
-    //     let old_c = old_c.into();
-    //     let new_c = new_c.into();
-    //     self.commands.move_tile(self.map_id, old_c, new_c);
-    //     self
-    // }
-
-    // /// Move tiles from the first coordinate to the second coordinate, despawning
-    // /// any tile found in the second coordinate.
-    // pub fn move_tile_batch<IC>(&mut self, tile_cs: IC) -> &mut Self
-    // where
-    //     IC: IntoIterator<Item = ([i32; N], [i32; N])> + Send + 'static,
-    // {
-    //     self.commands.move_tile_batch(self.map_id, tile_cs);
-    //     self
-    // }
-
-    // /// Swaps two tiles if both exist, or moves one tile if the other doesn't exist.
-    // pub fn swap_tiles(
-    //     &mut self,
-    //     tile_c_1: impl Into<[i32; N]>,
-    //     tile_c_2: impl Into<[i32; N]>,
-    // ) -> &mut Self {
-    //     let tile_c_1 = tile_c_1.into();
-    //     let tile_c_2 = tile_c_2.into();
-    //     self.commands.swap_tiles(self.map_id, tile_c_1, tile_c_2);
-    //     self
-    // }
-
-    // /// Swap tiles from the first coordinate and the second coordinate
-    // pub fn swap_tile_batch<IC>(&mut self, tile_cs: IC) -> &mut Self
-    // where
-    //     IC: IntoIterator<Item = ([i32; N], [i32; N])> + Send + 'static,
-    // {
-    //     self.commands.swap_tile_batch(self.map_id, tile_cs);
-    //     self
-    // }
-
-    // /// Manually spawn a chunk entity, note that this will overwrite and despawn existing chunks at this location.
-    // pub fn spawn_chunk(
-    //     &mut self,
-    //     chunk_c: impl Into<[i32; N]>,
-    //     bundle: impl Bundle,
-    // ) -> EntityCommands<'_> {
-    //     let chunk_c = chunk_c.into();
-    //     self.commands.spawn_chunk(self.map_id, chunk_c, bundle)
-    // }
+    /// Manually spawn a chunk entity, note that this will overwrite and despawn existing chunks at this location.
+    pub fn spawn_chunk(&mut self, chunk_c: impl Into<[i32; N]>) {
+        let chunk_c = chunk_c.into();
+        self.commands.spawn_chunk(self.map_id, chunk_c)
+    }
 
     // /// Spawns chunks from the given iterator using the given function.
     // /// This will despawn any chunks (and their tiles) that already exists in this coordinate
@@ -164,12 +118,6 @@ impl<'a, 'w, 's, const N: usize> TileMapCommands<'a, 'w, 's, N> {
     // pub fn id(&self) -> Entity {
     //     self.map_id
     // }
-
-    // /// Adds entities to the tilemap.
-    // pub fn insert(&mut self, bundle: impl Bundle) -> &mut Self {
-    //     self.commands.entity(self.map_id).insert(bundle);
-    //     self
-    // }
 }
 
 /// Helper method for creating map specific commands.
@@ -197,35 +145,8 @@ pub trait TileCommandExt<'w, 's, const N: usize> {
     // where
     //     IC: IntoIterator<Item = [i32; N]> + Send + 'static;
 
-    // /// Moves a tile from one coordinate to another, overwriting and despawning any tile in the new coordinate.
-    // fn move_tile(
-    //     &mut self,
-    //     map_id: Entity,
-    //     old_c: impl Into<[i32; N]>,
-    //     new_c: impl Into<[i32; N]>,
-    // ) -> &mut Self;
-
-    // /// Move tiles from the first coordinate to the second coordinate, despawning
-    // /// any tile found in the second coordinate.
-    // fn move_tile_batch<IC>(&mut self, map_id: Entity, tile_cs: IC)
-    // where
-    //     IC: IntoIterator<Item = ([i32; N], [i32; N])> + Send + 'static;
-
-    // /// Swaps two tiles if both exist, or moves one tile if the other doesn't exist.
-    // fn swap_tiles(&mut self, map_id: Entity, tile_c_1: [i32; N], tile_c_2: [i32; N]) -> &mut Self;
-
-    // /// Swap tiles from the first coordinate and the second coordinate
-    // fn swap_tile_batch<IC>(&mut self, map_id: Entity, tile_cs: IC)
-    // where
-    //     IC: IntoIterator<Item = ([i32; N], [i32; N])> + Send + 'static;
-
-    // /// Manually spawn a chunk entity, note that this will overwrite and despawn existing chunks at this location.
-    // fn spawn_chunk(
-    //     &mut self,
-    //     map_id: Entity,
-    //     chunk_c: [i32; N],
-    //     bundle: impl Bundle,
-    // ) -> EntityCommands<'_>;
+    /// Manually spawn a chunk entity, note that this will overwrite and despawn existing chunks at this location.
+    fn spawn_chunk(&mut self, map_id: Entity, chunk_c: [i32; N]);
 
     // /// Spawns chunks from the given iterator using the given function.
     // /// This will despawn any chunks (and their tiles) that already exists in this coordinate
@@ -243,15 +164,11 @@ pub trait TileCommandExt<'w, 's, const N: usize> {
     // where
     //     IC: IntoIterator<Item = [i32; N]> + Send + 'static;
 
-    // /// Spawn a new map.
-    // fn spawn_map(
-    //     &mut self,
-    //     chunk_size: usize,
-    //     bundle: impl Bundle,
-    // ) -> TileMapCommands<'_, 'w, 's, N>;
+    /// Spawn a new map.
+    fn spawn_map(&mut self, chunk_size: usize) -> TileMapCommands<'_, 'w, 's, N>;
 
-    // /// Recursively despawns a map and all it's chunks and tiles.
-    // fn despawn_map(&mut self, map_id: Entity) -> &mut Self;
+    /// Recursively despawns a map and all it's chunks and tiles.
+    fn despawn_map(&mut self, map_id: Entity) -> &mut Self;
 }
 
 impl<'w, 's, const N: usize> TileCommandExt<'w, 's, N> for Commands<'w, 's> {
@@ -297,73 +214,10 @@ impl<'w, 's, const N: usize> TileCommandExt<'w, 's, N> for Commands<'w, 's> {
         self
     }
 
-    // /// Despawns tiles from the given iterator.
-    // fn despawn_tile_batch<IC>(&mut self, map_id: Entity, tile_cs: IC)
-    // where
-    //     IC: IntoIterator<Item = [i32; N]> + Send + 'static,
-    // {
-    //     self.add(DespawnTileBatch::<IC, N> { map_id, tile_cs });
-    // }
-
-    // /// Moves a tile from one coordinate to another, overwriting and despawning any tile in the new coordinate.
-    // fn move_tile(
-    //     &mut self,
-    //     map_id: Entity,
-    //     old_c: impl Into<[i32; N]>,
-    //     new_c: impl Into<[i32; N]>,
-    // ) -> &mut Self {
-    //     let old_c = old_c.into();
-    //     let new_c = new_c.into();
-    //     self.add(MoveTile::<N> {
-    //         map_id,
-    //         old_c,
-    //         new_c,
-    //     });
-    //     self
-    // }
-
-    // /// Move tiles from the first coordinate to the second coordinate, despawning
-    // /// any tile found in the second coordinate.
-    // fn move_tile_batch<IC>(&mut self, map_id: Entity, tile_cs: IC)
-    // where
-    //     IC: IntoIterator<Item = ([i32; N], [i32; N])> + Send + 'static,
-    // {
-    //     self.add(MoveTileBatch::<IC, N> { map_id, tile_cs });
-    // }
-
-    // /// Swaps two tiles if both exist, or moves one tile if the other doesn't exist.
-    // fn swap_tiles(&mut self, map_id: Entity, tile_c_1: [i32; N], tile_c_2: [i32; N]) -> &mut Self {
-    //     self.add(SwapTile::<N> {
-    //         map_id,
-    //         tile_c_1,
-    //         tile_c_2,
-    //     });
-    //     self
-    // }
-
-    // /// Swap tiles from the first coordinate and the second coordinate
-    // fn swap_tile_batch<IC>(&mut self, map_id: Entity, tile_cs: IC)
-    // where
-    //     IC: IntoIterator<Item = ([i32; N], [i32; N])> + Send + 'static,
-    // {
-    //     self.add(SwapTileBatch::<IC, N> { map_id, tile_cs });
-    // }
-
-    // /// Manually spawn a chunk entity, note that this will overwrite and despawn existing chunks at this location.
-    // fn spawn_chunk(
-    //     &mut self,
-    //     map_id: Entity,
-    //     chunk_c: [i32; N],
-    //     bundle: impl Bundle,
-    // ) -> EntityCommands<'_> {
-    //     let chunk_id = self.spawn(bundle).id();
-    //     self.add(SpawnChunk::<N> {
-    //         map_id,
-    //         chunk_c,
-    //         chunk_id,
-    //     });
-    //     self.entity(chunk_id)
-    // }
+    /// Manually spawn a chunk entity, note that this will overwrite and despawn existing chunks at this location.
+    fn spawn_chunk(&mut self, map_id: Entity, chunk_c: [i32; N]) {
+        self.add(SpawnChunk::<N> { map_id, chunk_c });
+    }
 
     // /// Spawns chunks from the given iterator using the given function.
     // /// This will despawn any chunks (and their tiles) that already exists in this coordinate
@@ -394,25 +248,20 @@ impl<'w, 's, const N: usize> TileCommandExt<'w, 's, N> for Commands<'w, 's> {
     //     self.add(DespawnChunkBatch::<IC, N> { map_id, chunk_cs });
     // }
 
-    // /// Spawn a new map.
-    // fn spawn_map(
-    //     &mut self,
-    //     chunk_size: usize,
-    //     bundle: impl Bundle,
-    // ) -> TileMapCommands<'_, 'w, 's, N> {
-    //     let map_id = self.spawn(bundle).id();
-    //     self.add(SpawnMap::<N> { map_id, chunk_size });
-    //     TileMapCommands {
-    //         map_id,
-    //         commands: self,
-    //     }
-    // }
+    /// Spawn a new map.
+    fn spawn_map(&mut self, chunk_size: usize) -> TileMapCommands<'_, 'w, 's, N> {
+        let map_id = self.spawn(TileMap::<N>::with_chunk_size(chunk_size)).id();
+        TileMapCommands {
+            map_id,
+            commands: self,
+        }
+    }
 
-    // /// Recursively despawns a map and all it's chunks and tiles.
-    // fn despawn_map(&mut self, map_id: Entity) -> &mut Self {
-    //     self.add(DespawnMap::<N> { map_id });
-    //     self
-    // }
+    /// Recursively despawns a map and all it's chunks and tiles.
+    fn despawn_map(&mut self, map_id: Entity) -> &mut Self {
+        self.reborrow().entity(map_id).despawn_recursive();
+        self
+    }
 }
 
 /// Spawns a chunk in the world if needed, inserts the info into the map, and returns
@@ -446,6 +295,7 @@ fn spawn_chunk<'a, const N: usize>(
     let chunk_id = map
         .world
         .spawn((Chunk, ChunkCoord(chunk_c.0), InMap(map.source)))
+        .set_parent(map.source)
         .id();
     map.get_chunks_mut().insert(chunk_c, chunk_id);
     map.world.get_entity_mut(chunk_id).unwrap()
@@ -834,16 +684,6 @@ where
 
 //     world.get_entity_mut(map_id).unwrap().insert(map);
 //     chunk_ids
-// }
-
-// /// Insert the given entity and have it be treated as the given map.
-// pub fn insert_map<const N: usize>(world: &mut World, map_id: Entity, chunk_size: usize) {
-//     if let Some(mut map) = remove_map::<N>(world, map_id) {
-//         despawn_children::<N>(world, &mut map);
-//     }
-//     world
-//         .entity_mut(map_id)
-//         .insert(TileMap::<N>::with_chunk_size(chunk_size));
 // }
 
 // /// Despawns all the chunks and tiles in a given map

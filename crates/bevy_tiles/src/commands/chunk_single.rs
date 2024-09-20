@@ -1,16 +1,24 @@
-use bevy::ecs::{entity::Entity, system::Command, world::World};
+use bevy::{
+    ecs::{entity::Entity, world::World},
+    prelude::Command,
+};
 
-use super::{insert_chunk, take_chunk_despawn_tiles};
+use crate::maps::TileMap;
+
+use super::{get_or_spawn_chunk, TempRemove};
 
 pub struct SpawnChunk<const N: usize = 2> {
     pub map_id: Entity,
     pub chunk_c: [i32; N],
-    pub chunk_id: Entity,
 }
 
 impl<const N: usize> Command for SpawnChunk<N> {
     fn apply(self, world: &mut World) {
-        insert_chunk::<N>(world, self.map_id, self.chunk_c, self.chunk_id)
+        let Some(mut map) = world.temp_remove::<TileMap<N>>(self.map_id) else {
+            panic!("No tilemap found!")
+        };
+
+        get_or_spawn_chunk::<N>(&mut map, self.chunk_c);
     }
 }
 
@@ -21,9 +29,10 @@ pub struct DespawnChunk<const N: usize> {
 
 impl<const N: usize> Command for DespawnChunk<N> {
     fn apply(self, world: &mut World) {
-        let tile_id = take_chunk_despawn_tiles::<N>(world, self.map_id, self.chunk_c);
-        if let Some(id) = tile_id {
-            world.despawn(id);
-        }
+        let Some(mut map) = world.temp_remove::<TileMap<N>>(self.map_id) else {
+            panic!("No tilemap found!")
+        };
+
+        get_or_spawn_chunk::<N>(&mut map, self.chunk_c).despawn();
     }
 }
