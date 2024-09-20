@@ -43,7 +43,7 @@ where
     }
 
     /// Gets the query for a given map.
-    pub fn get_map_mut(&mut self, map_id: Entity) -> Option<ChunkQuery<'_, 'w, 's, Q, F, N>> {
+    pub fn get_map_mut(&mut self, map_id: Entity) -> Option<ChunkQuery<'_, '_, 's, Q, F, N>> {
         let map = self.map_q.get(map_id).ok()?;
 
         Some(ChunkQuery {
@@ -79,7 +79,7 @@ where
     }
 
     /// Get the readonly variant of this query.
-    pub fn reborrow(&self) -> ChunkQuery<'_, '_, 's, Q::ReadOnly, F, N> {
+    pub fn reborrow(&mut self) -> ChunkQuery<'_, '_, 's, Q, F, N> {
         ChunkQuery {
             chunk_q: self.chunk_q.reborrow(),
             map: self.map,
@@ -125,7 +125,7 @@ where
         &self,
         corner_1: impl Into<[i32; N]>,
         corner_2: impl Into<[i32; N]>,
-    ) -> ChunkQueryIter<'_, '_, 's, Q::ReadOnly, F, N> {
+    ) -> ChunkQueryIter<'_, 's, Q::ReadOnly, F, N> {
         let corner_1 = corner_1.into();
         let corner_2 = corner_2.into();
         // SAFETY: This thing is uses manual mem management
@@ -155,7 +155,7 @@ where
         &mut self,
         corner_1: impl Into<[i32; N]>,
         corner_2: impl Into<[i32; N]>,
-    ) -> ChunkQueryIter<'a, 'w, 's, Q, F, N> {
+    ) -> ChunkQueryIter<'_, 's, Q, F, N> {
         let corner_1 = corner_1.into();
         let corner_2 = corner_2.into();
         // SAFETY: This thing is uses manual mem management
@@ -167,21 +167,21 @@ where
 // the readonly query by making the TileQueryIter own it as a reference.
 
 /// Iterates over all the tiles in a region.
-pub struct ChunkQueryIter<'a, 'w, 's, Q, F, const N: usize>
+pub struct ChunkQueryIter<'a, 's, Q, F, const N: usize>
 where
     Q: QueryData + 'static,
     F: QueryFilter + 'static,
 {
     coord_iter: CoordIterator<N>,
-    chunk_q: ChunkQuery<'a, 'w, 's, Q, F, N>,
+    chunk_q: ChunkQuery<'a, 'a, 's, Q, F, N>,
 }
-impl<'a, 'w, 's, Q, F, const N: usize> ChunkQueryIter<'a, 'w, 's, Q, F, N>
+impl<'a, 's, Q, F, const N: usize> ChunkQueryIter<'a, 's, Q, F, N>
 where
     Q: QueryData + 'static,
     F: QueryFilter + 'static,
 {
     unsafe fn from_owned(
-        chunk_q: ChunkQuery<'a, 'w, 's, Q, F, N>,
+        chunk_q: ChunkQuery<'a, 'a, 's, Q, F, N>,
         corner_1: [i32; N],
         corner_2: [i32; N],
     ) -> Self {
@@ -192,7 +192,7 @@ where
     }
 }
 
-impl<'a, 'w, 's, Q, F, const N: usize> Iterator for ChunkQueryIter<'a, 'w, 's, Q, F, N>
+impl<'a, 's: 'a, Q, F, const N: usize> Iterator for ChunkQueryIter<'a, 's, Q, F, N>
 where
     Q: QueryData + 'static,
     F: QueryFilter + 'static,
@@ -202,10 +202,19 @@ where
     #[allow(clippy::while_let_on_iterator)]
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(target) = self.coord_iter.next() {
-            // SAFETY: It might not be
+            // SAFETY: Same as below.
             let tile = unsafe { self.chunk_q.get_at_unchecked(target) };
             if tile.is_some() {
-                return tile;
+                // SAFETY: Since this is always tied to the lifetime of the reference we are reborrowing query from, we're just
+                // telling the compiler here that we understand this particular item is pointing to something above this iterator.
+                // Even if we drop the iterator, we can't create a new one or mutably borrow the underlying query again, since
+                // this returned itemed will keep the original borrow used to make the iterator alive in the mind of the compiler.
+                return unsafe {
+                    std::mem::transmute::<
+                        std::option::Option<<Q as WorldQuery>::Item<'_>>,
+                        std::option::Option<<Q as WorldQuery>::Item<'_>>,
+                    >(tile)
+                };
             }
         }
 

@@ -1,4 +1,7 @@
-use bevy::ecs::query::{QueryData, WorldQuery};
+use bevy::{
+    ecs::query::{QueryData, WorldQuery},
+    prelude::{Bundle, EntityWorldMut},
+};
 
 use crate::chunks::ChunkData;
 
@@ -65,8 +68,13 @@ impl<'w, T: Send + Sync + 'static> TileDataQuery for &'w mut T {
     }
 }
 
-// pub unsafe trait TileBundle: Send + Sync + 'static {
-//     type Source: QueryData;
+/// The tiled version of a component bundle.
+/// # Safety
+/// Easy to screw this up.
+pub unsafe trait TileBundle: Sized + Send + Sync + 'static {
+    /// Inserts a bundle.
+    fn insert(self, chunk: EntityWorldMut<'_>, tile_i: usize);
 
-//     fn get_component_ids(components: &Components, ids: &mut impl FnMut(Option<ComponentId>));
-// }
+    /// Try to remove a bundle.
+    fn remove(chunk: EntityWorldMut<'_>, tile_i: usize) -> Option<Self>;
+}
