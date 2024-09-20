@@ -991,6 +991,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_tiles_ecs"
+version = "0.0.0-dev3"
+
+[[package]]
 name = "bevy_time"
 version = "0.15.0-dev"
 source = "git+https://github.com/bevyengine/bevy.git?branch=main#41474226c3b8efa1c4515a3a39e79dcb127ea5c6"
