@@ -1,14 +1,27 @@
 [package]
 name = "bevy_tiles_ecs"
-version.workspace = true
+version = "0.1.0"
 edition.workspace = true
 authors.workspace = true
-license.workspace = true
 license-file.workspace = true
 repository.workspace = true
 homepage.workspace = true
+description = "Bevy library for working with entities in grids."
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
 
 [dependencies]
+bevy = { workspace = true }
+bevy_tiles = { workspace = true }
+bimap = { workspace = true }
+
+[dev-dependencies]
+rstest = { workspace = true }
+bevy = { workspace = true, default-features = true }
 
 [lints]
 workspace = true

@@ -51,11 +51,18 @@ impl<T> ChunkData<T> {
         Self(v)
     }
 
-    pub(crate) fn get(&self, tile_i: usize) -> Option<&T> {
+    /// Get tile data at a given index.
+    pub fn get(&self, tile_i: usize) -> Option<&T> {
         self.0.get(tile_i).and_then(|f| f.as_ref())
     }
 
-    pub(crate) fn get_mut(&mut self, tile_i: usize) -> Option<&mut T> {
+    /// Get tile data at a given index.
+    pub fn get_mut(&mut self, tile_i: usize) -> Option<&mut T> {
         self.0.get_mut(tile_i).and_then(|f| f.as_mut())
+    }
+
+    /// Take the value from this index.
+    pub fn take(&mut self, tile_i: usize) -> Option<T> {
+        self.0.get_mut(tile_i)?.take()
     }
 }

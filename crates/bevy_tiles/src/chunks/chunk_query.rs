@@ -62,7 +62,8 @@ where
     F: QueryFilter + 'static,
 {
     chunk_q: Query<'w, 's, Q, (F, With<InMap>, With<Chunk>)>,
-    pub(crate) map: &'a TileMap<N>,
+    /// The map being read.
+    pub map: &'a TileMap<N>,
 }
 
 impl<'a, 'w, 's, Q, F, const N: usize> ChunkQuery<'a, 'w, 's, Q, F, N>

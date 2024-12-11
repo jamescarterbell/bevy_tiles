@@ -182,7 +182,7 @@ impl<'w, 's, const N: usize> TileCommandExt<'w, 's, N> for Commands<'w, 's> {
     /// Spawns a tile and returns a handle to the underlying entity.
     /// This will despawn any tile that already exists in this coordinate
     fn spawn_tile<B: TileBundle>(&mut self, map_id: Entity, tile_c: [i32; N], bundle: B) {
-        self.add(InsertTile::<B, N> {
+        self.queue(InsertTile::<B, N> {
             map_id,
             tile_c,
             bundle,
@@ -206,7 +206,7 @@ impl<'w, 's, const N: usize> TileCommandExt<'w, 's, N> for Commands<'w, 's> {
 
     /// Despawns a tile.
     fn remove_tile<B: TileBundle>(&mut self, map_id: Entity, tile_c: [i32; N]) -> &mut Self {
-        self.add(RemoveTile::<B, N> {
+        self.queue(RemoveTile::<B, N> {
             map_id,
             tile_c,
             bundle: Default::default(),
@@ -216,7 +216,7 @@ impl<'w, 's, const N: usize> TileCommandExt<'w, 's, N> for Commands<'w, 's> {
 
     /// Manually spawn a chunk entity, note that this will overwrite and despawn existing chunks at this location.
     fn spawn_chunk(&mut self, map_id: Entity, chunk_c: [i32; N]) {
-        self.add(SpawnChunk::<N> { map_id, chunk_c });
+        self.queue(SpawnChunk::<N> { map_id, chunk_c });
     }
 
     // /// Spawns chunks from the given iterator using the given function.
@@ -307,7 +307,7 @@ pub fn insert_tile<B: TileBundle, const N: usize>(
     map: &mut TempRemoved<'_, TileMap<N>>,
     tile_c: [i32; N],
     tile_bundle: B,
-) {
+) -> B::Replaced {
     let chunk_size = map.get_chunk_size();
 
     // Take the chunk out and get the id to reinsert it
@@ -366,7 +366,7 @@ where
     let chunk_c = calculate_chunk_coordinate(tile_c, chunk_size);
     let chunk_id = *map.get_chunks().get(&ChunkCoord::<N>(chunk_c))?;
 
-    let chunk_e = world.get_entity_mut(chunk_id)?;
+    let chunk_e = world.get_entity_mut(chunk_id).ok()?;
 
     B::remove(chunk_e, calculate_tile_index(tile_c, chunk_size))
 }
@@ -747,10 +747,10 @@ pub struct TempRemoved<'w, T: Bundle> {
 impl<'w, T: Bundle> Drop for TempRemoved<'w, T> {
     #[inline]
     fn drop(&mut self) {
-        self.world
-            .get_entity_mut(self.source)
-            .unwrap()
-            .insert(self.value.take().unwrap());
+        EntityWorldMut::insert(
+            &mut self.world.get_entity_mut(self.source).unwrap(),
+            self.value.take().unwrap(),
+        );
     }
 }
 
@@ -781,6 +781,7 @@ impl TempRemove for World {
     #[inline]
     fn temp_remove<T: Bundle>(&mut self, id: Entity) -> Option<TempRemoved<'_, T>> {
         self.get_entity_mut(id)
+            .ok()
             .and_then(|mut ent| ent.take::<T>().map(|val| (ent.id(), val)))
             .map(|(id, val)| TempRemoved {
                 value: Some(val),

@@ -20,7 +20,8 @@ opt-level = 1
 opt-level = 3
 
 [workspace.dependencies]
-bevy = {git = "https://github.com/bevyengine/bevy.git", branch = "main", default-features = false}
+bevy = { version = "0.15", default-features = false }
+bevy_tiles = { path = "crates/bevy_tiles" }
 rstest = "0.18.2"
 bimap = "0.6.3"
 rand = "0.8.5"
@@ -30,7 +31,6 @@ dashmap = "5.5.3"
 [workspace.lints.clippy]
 type_complexity = "allow"
 undocumented_unsafe_blocks = "deny"
-all = "deny"
 
 [workspace.lints.rust]
 unused_imports = "warn"

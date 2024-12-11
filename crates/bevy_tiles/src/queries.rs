@@ -1,6 +1,6 @@
 use bevy::{
     ecs::query::{QueryData, WorldQuery},
-    prelude::{Bundle, EntityWorldMut},
+    prelude::{Bundle, Component, Entity, EntityWorldMut},
 };
 
 use crate::chunks::ChunkData;
@@ -68,13 +68,59 @@ impl<'w, T: Send + Sync + 'static> TileDataQuery for &'w mut T {
     }
 }
 
+impl TileData for Entity {
+    type ReadOnly = Self;
+}
+
+/// Safety: Entity is readonly.
+unsafe impl ReadOnlyTileData for Entity {}
+
+impl TileDataQuery for Entity {
+    type Item<'a> = Entity;
+
+    type Source = &'static ChunkData<Entity>;
+
+    fn get<'a>(
+        source: <<Self as TileDataQuery>::Source as WorldQuery>::Item<'_>,
+        index: usize,
+    ) -> Option<Self::Item<'_>> {
+        source.get(index).cloned()
+    }
+}
+
 /// The tiled version of a component bundle.
 /// # Safety
 /// Easy to screw this up.
 pub unsafe trait TileBundle: Sized + Send + Sync + 'static {
-    /// Inserts a bundle.
-    fn insert(self, chunk: EntityWorldMut<'_>, tile_i: usize);
+    /// The type returned when a value is replaced (Usually an Option or group of Options).
+    type Replaced;
+    /// The component on the chunk tile data is queried from.
+    type Source: Component;
+
+    /// Inserts a bundle and returns all the replaced values.
+    fn insert(self, chunk: EntityWorldMut<'_>, tile_i: usize) -> Self::Replaced;
 
     /// Try to remove a bundle.
     fn remove(chunk: EntityWorldMut<'_>, tile_i: usize) -> Option<Self>;
+}
+
+/// # Safety:
+/// Probably safe.
+unsafe impl<T: Sized + Send + Sync + 'static> TileBundle for T {
+    type Replaced = Option<T>;
+
+    type Source = ChunkData<T>;
+
+    fn insert(self, mut chunk: EntityWorldMut<'_>, tile_i: usize) -> Self::Replaced {
+        let location = chunk.get_mut::<Self::Source>();
+        let mut binding = location?;
+        let target = binding.get_mut(tile_i)?;
+        Some(std::mem::replace(target, self))
+    }
+
+    fn remove(mut chunk: EntityWorldMut<'_>, tile_i: usize) -> Option<Self> {
+        let location = chunk.get_mut::<Self::Source>();
+        let mut binding = location?;
+        binding.take(tile_i)
+    }
 }
