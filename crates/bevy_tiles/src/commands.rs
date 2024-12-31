@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::{
-    chunks::{Chunk, ChunkCoord, InMap},
+    chunks::{Chunk, ChunkCoord, ChunkData, ChunkTypes, InMap},
     coords::{calculate_chunk_coordinate, calculate_tile_index},
     maps::TileMap,
     queries::TileBundle,
@@ -15,8 +15,8 @@ use crate::{
 use bevy::{
     ecs::system::EntityCommands,
     prelude::{
-        BuildChildren, Bundle, Commands, Component, DespawnRecursiveExt, Entity, EntityWorldMut,
-        World,
+        BuildChildren, Bundle, Commands, Component, Deref, DerefMut, DespawnRecursiveExt, Entity,
+        EntityWorldMut, World,
     },
     utils::{hashbrown::hash_map::Entry, HashMap},
 };
@@ -32,17 +32,18 @@ use chunk_single::*;
 use tile_single::*;
 
 /// Applies commands to a specific tile map.
-pub struct TileMapCommands<'a, 'w, 's, const N: usize> {
-    commands: &'a mut Commands<'w, 's>,
-    map_id: Entity,
+#[derive(Deref, DerefMut)]
+pub struct TileMapCommands<'a, const N: usize> {
+    commands: EntityCommands<'a>,
 }
 
-impl<'a, 'w, 's, const N: usize> TileMapCommands<'a, 'w, 's, N> {
+impl<'a, const N: usize> TileMapCommands<'a, N> {
     /// Spawns a tile and returns a handle to the underlying entity.
     /// This will despawn any tile that already exists in this coordinate
     pub fn insert_tile<B: TileBundle>(&mut self, tile_c: impl Into<[i32; N]>, bundle: B) {
         let tile_c = tile_c.into();
-        self.commands.spawn_tile(self.map_id, tile_c, bundle);
+        let id = self.commands.id();
+        self.commands.commands().spawn_tile(id, tile_c, bundle);
     }
 
     // /// Spawns tiles from the given iterator using the given function.
@@ -61,7 +62,8 @@ impl<'a, 'w, 's, const N: usize> TileMapCommands<'a, 'w, 's, N> {
     /// Despawns a tile.
     pub fn remove_tile<B: TileBundle>(&mut self, tile_c: impl Into<[i32; N]>) -> &mut Self {
         let tile_c = tile_c.into();
-        self.commands.remove_tile::<B>(self.map_id, tile_c);
+        let id = self.commands.id();
+        self.commands.commands().remove_tile::<B>(id, tile_c);
         self
     }
 
@@ -77,7 +79,8 @@ impl<'a, 'w, 's, const N: usize> TileMapCommands<'a, 'w, 's, N> {
     /// Manually spawn a chunk entity, note that this will overwrite and despawn existing chunks at this location.
     pub fn spawn_chunk(&mut self, chunk_c: impl Into<[i32; N]>) {
         let chunk_c = chunk_c.into();
-        self.commands.spawn_chunk(self.map_id, chunk_c)
+        let id = self.commands.id();
+        self.commands.commands().spawn_chunk(id, chunk_c)
     }
 
     // /// Spawns chunks from the given iterator using the given function.
@@ -123,7 +126,7 @@ impl<'a, 'w, 's, const N: usize> TileMapCommands<'a, 'w, 's, N> {
 /// Helper method for creating map specific commands.
 pub trait TileCommandExt<'w, 's, const N: usize> {
     /// Gets [TileMapCommands] to apply commands at the tile map level.
-    fn tile_map<'a>(&'a mut self, map_id: Entity) -> TileMapCommands<'a, 'w, 's, N>;
+    fn tile_map(&mut self, map_id: Entity) -> Option<TileMapCommands<'_, N>>;
 
     /// Spawns a tile and returns a handle to the underlying entity.
     /// This will despawn any tile that already exists in this coordinate
@@ -165,18 +168,16 @@ pub trait TileCommandExt<'w, 's, const N: usize> {
     //     IC: IntoIterator<Item = [i32; N]> + Send + 'static;
 
     /// Spawn a new map.
-    fn spawn_map(&mut self, chunk_size: usize) -> TileMapCommands<'_, 'w, 's, N>;
+    fn spawn_map(&mut self, chunk_size: usize) -> TileMapCommands<'_, N>;
 
     /// Recursively despawns a map and all it's chunks and tiles.
     fn despawn_map(&mut self, map_id: Entity) -> &mut Self;
 }
 
 impl<'w, 's, const N: usize> TileCommandExt<'w, 's, N> for Commands<'w, 's> {
-    fn tile_map(&mut self, map_id: Entity) -> TileMapCommands<'_, 'w, 's, N> {
-        TileMapCommands {
-            commands: self,
-            map_id,
-        }
+    fn tile_map(&mut self, map_id: Entity) -> Option<TileMapCommands<'_, N>> {
+        self.get_entity(map_id)
+            .map(|commands| TileMapCommands { commands })
     }
 
     /// Spawns a tile and returns a handle to the underlying entity.
@@ -249,11 +250,9 @@ impl<'w, 's, const N: usize> TileCommandExt<'w, 's, N> for Commands<'w, 's> {
     // }
 
     /// Spawn a new map.
-    fn spawn_map(&mut self, chunk_size: usize) -> TileMapCommands<'_, 'w, 's, N> {
-        let map_id = self.spawn(TileMap::<N>::with_chunk_size(chunk_size)).id();
+    fn spawn_map(&mut self, chunk_size: usize) -> TileMapCommands<'_, N> {
         TileMapCommands {
-            map_id,
-            commands: self,
+            commands: self.spawn(TileMap::<N>::with_chunk_size(chunk_size)),
         }
     }
 
@@ -294,11 +293,28 @@ fn spawn_chunk<'a, const N: usize>(
     let chunk_c = ChunkCoord(chunk_c);
     let chunk_id = map
         .world
-        .spawn((Chunk, ChunkCoord(chunk_c.0), InMap(map.source)))
+        .spawn((
+            Chunk,
+            ChunkCoord(chunk_c.0),
+            InMap(map.source),
+            ChunkTypes::default(),
+        ))
         .set_parent(map.source)
         .id();
     map.get_chunks_mut().insert(chunk_c, chunk_id);
     map.world.get_entity_mut(chunk_id).unwrap()
+}
+
+/// Result from inserting a tile.
+pub struct InsertTileResult<B: TileBundle, const N: usize> {
+    /// Any replaced tile values.
+    pub replaced: B::Replaced,
+    /// Calculated index in chunk.
+    pub tile_index: TileIndex,
+    /// Calculated coordinate in chunk.
+    pub tile_coord: TileCoord<N>,
+    /// Chunk tile was inserted into.
+    pub chunk_id: InChunk,
 }
 
 /// Inserts a tile into the given map.
@@ -307,17 +323,46 @@ pub fn insert_tile<B: TileBundle, const N: usize>(
     map: &mut TempRemoved<'_, TileMap<N>>,
     tile_c: [i32; N],
     tile_bundle: B,
-) -> B::Replaced {
+) -> InsertTileResult<B, N> {
     let chunk_size = map.get_chunk_size();
 
     // Take the chunk out and get the id to reinsert it
     let chunk_c = calculate_chunk_coordinate(tile_c, chunk_size);
     let chunk = get_or_spawn_chunk::<N>(map, chunk_c);
+    let chunk_id = chunk.id();
 
     // Insert the tile
     let tile_i = calculate_tile_index(tile_c, chunk_size);
 
-    tile_bundle.insert(chunk, tile_i)
+    InsertTileResult {
+        replaced: tile_bundle.insert_tile_into_chunk::<N>(chunk, chunk_size, tile_i),
+        tile_index: TileIndex(tile_i),
+        chunk_id: InChunk(chunk_id),
+        tile_coord: TileCoord(tile_c),
+    }
+}
+
+/// Removes a tile from the given map if it exists.
+#[inline]
+pub fn take_tile<B: TileBundle, const N: usize>(
+    map: &mut TempRemoved<'_, TileMap<N>>,
+    tile_c: [i32; N],
+) -> B::Replaced {
+    let chunk_size = map.get_chunk_size();
+
+    let chunk_c = calculate_chunk_coordinate(tile_c, chunk_size);
+    let chunk_c = ChunkCoord::<N>(chunk_c);
+    let Some(chunk_id) = map.get_chunks().get(&chunk_c) else {
+        return B::Replaced::default();
+    };
+    let Some(mut chunk_e) = map.world.get_entity_mut(*chunk_id).ok() else {
+        return B::Replaced::default();
+    };
+
+    // Insert the tile
+    let tile_i = calculate_tile_index(tile_c, chunk_size);
+
+    B::take_tile_from_chunk(&mut chunk_e, tile_i)
 }
 
 // /// Removes a tile from the given map.
@@ -350,26 +395,6 @@ pub fn insert_tile<B: TileBundle, const N: usize>(
 //     world.get_entity_mut(chunk_id).unwrap().insert(chunk);
 //     tile
 // }
-
-/// Take a tile from the world.
-#[inline]
-pub fn remove_tile<B, const N: usize>(
-    world: &mut World,
-    map_id: Entity,
-    tile_c: [i32; N],
-) -> Option<B>
-where
-    B: TileBundle,
-{
-    let map = world.get_mut::<TileMap<N>>(map_id)?;
-    let chunk_size = map.get_chunk_size();
-    let chunk_c = calculate_chunk_coordinate(tile_c, chunk_size);
-    let chunk_id = *map.get_chunks().get(&ChunkCoord::<N>(chunk_c))?;
-
-    let chunk_e = world.get_entity_mut(chunk_id).ok()?;
-
-    B::remove(chunk_e, calculate_tile_index(tile_c, chunk_size))
-}
 
 // /// Inserts a list of entities into the corresponding tiles of a given tile map
 // pub fn insert_tile_batch<const N: usize>(

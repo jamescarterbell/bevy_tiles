@@ -16,19 +16,15 @@ pub mod tiles;
 
 /// Helper aliases for working with 2d grids
 pub mod tiles_2d {
-    use bevy::ecs::system::Commands;
+    use bevy_tiles::commands::TileMapCommands;
 
     /// 2d [crate::tiles::TileEntityMapQuery] alias.
     pub type TileEntityMapQuery<'w, 's, Q, F> = crate::tiles::TileEntityMapQuery<'w, 's, Q, F, 2>;
 
-    /// 2d [crate::commands::TileMapCommands] alias.
-    pub type TileMapCommands<'a, 'w, 's, const N: usize> =
-        crate::commands::TileMapCommands<'a, 'w, 's, 2>;
-
     /// 2d [crate::commands::TileCommandExt] alias.
-    pub trait TileCommandExt<'w, 's>: crate::commands::TileEcsCommandExt<'w, 's, 2> {}
+    pub trait TileMapCommandsECSExt: crate::commands::TileMapCommandsECSExt<2> {}
 
-    impl<'w, 's> TileCommandExt<'w, 's> for Commands<'w, 's> {}
+    impl<'a> TileMapCommandsECSExt for TileMapCommands<'a, 2> {}
 }
 
 // /// Helper aliases for working with 2d grids

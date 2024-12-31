@@ -7,7 +7,7 @@ use bevy::{
 
 use crate::{maps::TileMap, queries::TileBundle};
 
-use super::{insert_tile, remove_tile, TempRemove};
+use super::{insert_tile, take_tile, TempRemove};
 
 pub struct InsertTile<B, const N: usize>
 where
@@ -42,6 +42,10 @@ where
     B: TileBundle,
 {
     fn apply(self, world: &mut World) {
-        remove_tile::<B, N>(world, self.map_id, self.tile_c);
+        let Some(mut map) = world.temp_remove::<TileMap<N>>(self.map_id) else {
+            panic!("No tilemap found!")
+        };
+
+        take_tile::<B, N>(&mut map, self.tile_c);
     }
 }

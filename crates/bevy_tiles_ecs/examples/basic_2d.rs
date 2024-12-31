@@ -1,5 +1,6 @@
-use bevy::{prelude::*, sprite::SpriteBundle, DefaultPlugins};
+use bevy::{prelude::*, DefaultPlugins};
 use bevy_tiles::{commands::TileCommandExt, coords::CoordIterator, tiles_2d::*, TilesPlugin};
+use bevy_tiles_ecs::{commands::TileMapCommandsECSExt, tiles_2d::TileEntityMapQuery};
 
 fn main() {
     App::new()
@@ -24,30 +25,31 @@ fn spawn(mut commands: Commands, asset_server: Res<AssetServer>) {
     let block = asset_server.load("block.png");
     let character = asset_server.load("character.png");
 
-    commands.spawn(Camera2dBundle::default());
-    let mut map = commands.spawn_map(16, GameLayer);
+    commands.spawn(Camera2d);
+    let mut map = commands.spawn_map(16);
+    map.insert(GameLayer);
 
-    let sprite_bundle = SpriteBundle {
-        texture: block,
+    let sprite = Sprite {
+        image: block,
         ..Default::default()
     };
 
     // spawn a 10 * 10 room
-    map.spawn_tile_batch(
-        CoordIterator::new([-5, 5], [5, 5])
-            .chain(CoordIterator::new([-5, -5], [5, -5]))
-            .chain(CoordIterator::new([5, -4], [5, 4]))
-            .chain(CoordIterator::new([-5, -4], [-5, 4])),
-        move |_| (Block, sprite_bundle.clone()),
-    );
+    // map.spawn_tile_batch(
+    //     CoordIterator::new([-5, 5], [5, 5])
+    //         .chain(CoordIterator::new([-5, -5], [5, -5]))
+    //         .chain(CoordIterator::new([5, -4], [5, 4]))
+    //         .chain(CoordIterator::new([-5, -4], [-5, 4])),
+    //     move |_| (Block, sprite_bundle.clone()),
+    // );
 
     // spawn a player
     map.spawn_tile(
         IVec2::ZERO,
         (
             Character,
-            SpriteBundle {
-                texture: character,
+            Sprite {
+                image: character,
                 ..Default::default()
             },
         ),
@@ -59,7 +61,7 @@ fn move_character(
     mut commands: Commands,
     map: Query<Entity, With<GameLayer>>,
     character: Query<&TileCoord, With<Character>>,
-    walls_maps: TileMapQuery<(), With<Block>>,
+    walls_maps: TileEntityMapQuery<(), With<Block>>,
 ) {
     let map_id = map.single();
     let walls = walls_maps.get_map(map_id).unwrap();
@@ -74,7 +76,10 @@ fn move_character(
     let new_coord = char_c + IVec2::new(x, y);
 
     if (x != 0 || y != 0) && walls.get_at(new_coord).is_none() {
-        commands.move_tile(map_id, char_c, new_coord);
+        commands
+            .tile_map(map_id)
+            .unwrap()
+            .move_tile(char_c, new_coord);
     }
 }
 

@@ -3,11 +3,11 @@ use bevy::{
     prelude::Command,
 };
 use bevy_tiles::{
-    commands::{insert_tile, TempRemove},
+    commands::{insert_tile, take_tile, TempRemove},
+    coords::calculate_chunk_coordinate,
     maps::TileMap,
+    tiles::{InChunk, TileCoord, TileIndex},
 };
-
-use super::{insert_tile_into_map, remove_map, take_tile, take_tile_from_map};
 
 pub struct SpawnTile<const N: usize = 2> {
     pub map_id: Entity,
@@ -17,15 +17,23 @@ pub struct SpawnTile<const N: usize = 2> {
 
 impl<const N: usize> Command for SpawnTile<N> {
     fn apply(self, world: &mut World) {
-        let Some(mut map) = world.temp_remove::<TileMap<N>>(self.map_id) else {
-            panic!("No tilemap found!")
+        let res = {
+            let Some(mut map) = world.temp_remove::<TileMap<N>>(self.map_id) else {
+                panic!("No tilemap found!")
+            };
+
+            insert_tile::<Entity, N>(&mut map, self.tile_c, self.tile_id)
         };
 
-        let Some(old) = insert_tile::<N>(&mut map, self.tile_c, self.tile_id) else {
-            return;
-        };
+        world.get_entity_mut(self.tile_id).unwrap().insert((
+            res.tile_index,
+            res.tile_coord,
+            res.chunk_id,
+        ));
 
-        world.entity(old).despawn();
+        if let Some(replaced) = res.replaced {
+            world.despawn(replaced);
+        }
     }
 }
 
@@ -36,8 +44,13 @@ pub struct DespawnTile<const N: usize> {
 
 impl<const N: usize> Command for DespawnTile<N> {
     fn apply(self, world: &mut World) {
-        let tile_id = take_tile::<N>(world, self.map_id, self.tile_c);
-        if let Some(id) = tile_id {
+        if let Some(id) = {
+            let Some(mut map) = world.temp_remove::<TileMap<N>>(self.map_id) else {
+                panic!("No tilemap found!")
+            };
+
+            take_tile::<Entity, N>(&mut map, self.tile_c)
+        } {
             world.despawn(id);
         }
     }
@@ -45,33 +58,55 @@ impl<const N: usize> Command for DespawnTile<N> {
 
 pub struct SwapTile<const N: usize> {
     pub map_id: Entity,
+    pub tile_c_0: [i32; N],
     pub tile_c_1: [i32; N],
-    pub tile_c_2: [i32; N],
 }
 
 impl<const N: usize> Command for SwapTile<N> {
     fn apply(self, world: &mut World) {
-        if self.tile_c_1 == self.tile_c_2 {
+        if self.tile_c_0 == self.tile_c_1 {
             return;
         }
 
-        let Some(mut map) = remove_map::<N>(world, self.map_id) else {
-            return;
+        let Some(mut map) = world.temp_remove::<TileMap<N>>(self.map_id) else {
+            panic!("No tilemap found!")
         };
 
-        let tile_id_1 = take_tile_from_map::<N>(world, &mut map, self.tile_c_1);
+        let tile_id_0 = take_tile::<Entity, N>(&mut map, self.tile_c_0);
 
-        let tile_id_2 = take_tile_from_map::<N>(world, &mut map, self.tile_c_2);
+        let tile_id_1 = take_tile::<Entity, N>(&mut map, self.tile_c_1);
 
-        if let Some(tile_id) = tile_id_1 {
-            insert_tile_into_map(world, &mut map, self.map_id, self.tile_c_2, tile_id);
+        let res_0 = tile_id_0.map(|tile_id_0| {
+            (
+                tile_id_0,
+                insert_tile::<Entity, N>(&mut map, self.tile_c_1, tile_id_0),
+            )
+        });
+
+        let res_1 = tile_id_1.map(|tile_id_1| {
+            (
+                tile_id_1,
+                insert_tile::<Entity, N>(&mut map, self.tile_c_0, tile_id_1),
+            )
+        });
+
+        drop(map);
+
+        if let Some((tile_id, res)) = res_0 {
+            world.get_entity_mut(tile_id).unwrap().insert((
+                res.tile_index,
+                res.tile_coord,
+                res.chunk_id,
+            ));
         }
 
-        if let Some(tile_id) = tile_id_2 {
-            insert_tile_into_map(world, &mut map, self.map_id, self.tile_c_1, tile_id);
+        if let Some((tile_id, res)) = res_1 {
+            world.get_entity_mut(tile_id).unwrap().insert((
+                res.tile_index,
+                res.tile_coord,
+                res.chunk_id,
+            ));
         }
-
-        world.get_entity_mut(self.map_id).unwrap().insert(map);
     }
 }
 
@@ -83,20 +118,25 @@ pub struct MoveTile<const N: usize> {
 
 impl<const N: usize> Command for MoveTile<N> {
     fn apply(self, world: &mut World) {
-        if self.old_c == self.new_c {
-            return;
-        }
+        let (id, res) = {
+            let Some(mut map) = world.temp_remove::<TileMap<N>>(self.map_id) else {
+                panic!("No tilemap found!")
+            };
 
-        let Some(mut map) = remove_map::<N>(world, self.map_id) else {
-            return;
+            let Some(id) = take_tile::<Entity, N>(&mut map, self.old_c) else {
+                println!("Couldn't find the old tile :(");
+                return;
+            };
+            (id, insert_tile::<Entity, N>(&mut map, self.new_c, id))
         };
 
-        let tile_id = take_tile_from_map::<N>(world, &mut map, self.old_c);
+        world
+            .get_entity_mut(id)
+            .unwrap()
+            .insert((res.tile_index, res.tile_coord, res.chunk_id));
 
-        if let Some(tile_id) = tile_id {
-            insert_tile_into_map(world, &mut map, self.map_id, self.new_c, tile_id);
+        if let Some(replaced) = res.replaced {
+            world.despawn(replaced);
         }
-
-        world.get_entity_mut(self.map_id).unwrap().insert(map);
     }
 }

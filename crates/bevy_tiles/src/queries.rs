@@ -1,9 +1,11 @@
+use std::any::TypeId;
+
 use bevy::{
     ecs::query::{QueryData, WorldQuery},
     prelude::{Bundle, Component, Entity, EntityWorldMut},
 };
 
-use crate::chunks::ChunkData;
+use crate::chunks::{ChunkData, ChunkTypes};
 
 /// Marks a data type as.
 pub trait TileDataQuery {
@@ -93,15 +95,20 @@ impl TileDataQuery for Entity {
 /// Easy to screw this up.
 pub unsafe trait TileBundle: Sized + Send + Sync + 'static {
     /// The type returned when a value is replaced (Usually an Option or group of Options).
-    type Replaced;
+    type Replaced: Default;
     /// The component on the chunk tile data is queried from.
     type Source: Component;
 
     /// Inserts a bundle and returns all the replaced values.
-    fn insert(self, chunk: EntityWorldMut<'_>, tile_i: usize) -> Self::Replaced;
+    fn insert_tile_into_chunk<const N: usize>(
+        self,
+        chunk: EntityWorldMut<'_>,
+        chunk_size: usize,
+        tile_i: usize,
+    ) -> Self::Replaced;
 
     /// Try to remove a bundle.
-    fn remove(chunk: EntityWorldMut<'_>, tile_i: usize) -> Option<Self>;
+    fn take_tile_from_chunk(chunk: &mut EntityWorldMut<'_>, tile_i: usize) -> Self::Replaced;
 }
 
 /// # Safety:
@@ -111,16 +118,40 @@ unsafe impl<T: Sized + Send + Sync + 'static> TileBundle for T {
 
     type Source = ChunkData<T>;
 
-    fn insert(self, mut chunk: EntityWorldMut<'_>, tile_i: usize) -> Self::Replaced {
-        let location = chunk.get_mut::<Self::Source>();
-        let mut binding = location?;
-        let target = binding.get_mut(tile_i)?;
-        Some(std::mem::replace(target, self))
+    fn insert_tile_into_chunk<const N: usize>(
+        self,
+        mut chunk: EntityWorldMut<'_>,
+        chunk_size: usize,
+        tile_i: usize,
+    ) -> Self::Replaced {
+        let location = match chunk.get_mut::<Self::Source>() {
+            Some(data) => data,
+            None => {
+                chunk
+                    .get_mut::<ChunkTypes>()
+                    .unwrap()
+                    .0
+                    .insert(TypeId::of::<Self>());
+                let chunk = chunk.insert(Self::Source::new(chunk_size.pow(N.try_into().unwrap())));
+                chunk.get_mut::<Self::Source>().unwrap()
+            }
+        };
+        let mut binding = location;
+        binding.insert(tile_i, self)
     }
 
-    fn remove(mut chunk: EntityWorldMut<'_>, tile_i: usize) -> Option<Self> {
+    fn take_tile_from_chunk(chunk: &mut EntityWorldMut<'_>, tile_i: usize) -> Self::Replaced {
         let location = chunk.get_mut::<Self::Source>();
         let mut binding = location?;
-        binding.take(tile_i)
+        let removed = binding.take(tile_i);
+        if binding.count == 0 {
+            chunk
+                .get_mut::<ChunkTypes>()
+                .unwrap()
+                .0
+                .remove(&TypeId::of::<Self>());
+            chunk.remove::<Self::Source>();
+        }
+        removed
     }
 }

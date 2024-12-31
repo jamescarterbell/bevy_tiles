@@ -39,8 +39,7 @@ pub mod tiles_2d {
     pub type ChunkMapQuery<'w, 's, Q, F = ()> = crate::chunks::ChunkMapQuery<'w, 's, Q, F, 2>;
 
     /// 2d [crate::commands::TileMapCommands] alias.
-    pub type TileMapCommands<'a, 'w, 's, const N: usize> =
-        crate::commands::TileMapCommands<'a, 'w, 's, 2>;
+    pub type TileMapCommands<'a, const N: usize> = crate::commands::TileMapCommands<'a, 2>;
 
     /// 2d [crate::commands::TileCommandExt] alias.
     pub trait TileCommandExt<'w, 's>: crate::commands::TileCommandExt<'w, 's, 2> {}
@@ -65,8 +64,7 @@ pub mod tiles_3d {
     pub type ChunkMapQuery<'w, 's, Q, F = ()> = crate::chunks::ChunkMapQuery<'w, 's, Q, F, 3>;
 
     /// 3d [crate::commands::TileMapCommands] alias.
-    pub type TileMapCommands<'a, 'w, 's, const N: usize> =
-        crate::commands::TileMapCommands<'a, 'w, 's, 3>;
+    pub type TileMapCommands<'a, const N: usize> = crate::commands::TileMapCommands<'a, 3>;
 
     /// 3d [crate::commands::TileCommandExt] alias.
     pub trait TileCommandExt<'w, 's>: crate::commands::TileCommandExt<'w, 's, 3> {}
