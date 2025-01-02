@@ -13,6 +13,10 @@ use bevy_tiles::{
     tiles_2d::*,
     TilesPlugin,
 };
+use bevy_tiles_ecs::{
+    commands::TileMapCommandsECSExt,
+    tiles_2d::{TileCoord, TileEntityMapQuery},
+};
 use std::ops::{Deref, DerefMut};
 
 fn main() {
@@ -27,7 +31,7 @@ fn main() {
         .run();
 }
 
-#[derive(Component)]
+#[derive(Component, Clone)]
 struct Block;
 
 #[derive(Component)]
@@ -53,31 +57,33 @@ struct GameLayer;
 fn spawn(mut commands: Commands, asset_server: Res<AssetServer>) {
     let block = asset_server.load("block.png");
 
-    commands.spawn(Camera2dBundle {
-        projection: OrthographicProjection {
+    commands.spawn((
+        Camera2d,
+        OrthographicProjection {
             scale: 1.0,
-            ..Camera2dBundle::default().projection
+            ..OrthographicProjection::default_2d()
         },
-        ..Default::default()
-    });
-    let mut tile_commands = commands.spawn_map(32, GameLayer);
+    ));
+    let mut tile_commands = commands.spawn_map(32);
+    tile_commands.insert(GameLayer);
 
-    let sprite_bundle = SpriteBundle {
-        texture: block,
-        ..Default::default()
-    };
-
-    let size = 200;
+    let size = 100;
 
     tile_commands.spawn_tile_batch(
         CoordIterator::new([-size, -size], [size, size]),
-        move |_| (Block, sprite_bundle.clone()),
+        (
+            Block,
+            Sprite {
+                image: block,
+                ..Default::default()
+            },
+        ),
     );
 }
 
 fn add_damage(
     mut commands: Commands,
-    mut block_maps: TileMapQuery<(Entity, Option<&mut Damage>), With<Block>>,
+    mut block_maps: TileEntityMapQuery<(Entity, Option<&mut Damage>), With<Block>>,
     map: Query<(Entity, &TileMap), With<GameLayer>>,
     windows: Query<&Window, With<PrimaryWindow>>,
     camera: Query<(&Camera, &GlobalTransform)>,
@@ -90,7 +96,7 @@ fn add_damage(
     let cursor_pos = windows
         .single()
         .cursor_position()
-        .and_then(|cursor| cam.viewport_to_world(cam_t, cursor.xy()))
+        .and_then(|cursor| cam.viewport_to_world(cam_t, cursor.xy()).ok())
         .map(|ray| ray.origin.truncate())
         .map(|pos| world_to_tile(pos, 16.0));
 
@@ -115,7 +121,7 @@ fn add_damage(
         .flatten()
     {
         let chunk_c = calculate_chunk_coordinate(damage_pos, map.get_chunk_size());
-        commands.tile_map(map_id).despawn_chunk(chunk_c);
+        //commands.tile_map(map_id).despawn_chunk(chunk_c);
     }
 }
 
@@ -128,12 +134,7 @@ fn check_damage(
             x if x > 3 => commands.entity(id).despawn(),
             x => {
                 let tint = 1.0 - x as f32 / 3.0;
-                sprite.color = Color::Rgba {
-                    red: 1.0,
-                    green: tint,
-                    blue: tint,
-                    alpha: 1.0,
-                }
+                sprite.color = Color::linear_rgba(1.0, tint, tint, 1.0)
             }
         }
     }

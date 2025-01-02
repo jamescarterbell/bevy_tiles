@@ -11,7 +11,8 @@ use bevy::app::Plugin;
 
 /// Provides commands for interacting with tilemaps.
 pub mod commands;
-mod entity_tile;
+/// The entity tracking tile component.
+pub mod entity_tile;
 /// Provides tile level utilities.
 pub mod tiles;
 
@@ -33,31 +34,21 @@ pub mod tiles_2d {
     impl<'a> TileMapCommandsECSExt for TileMapCommands<'a, 2> {}
 }
 
-// /// Helper aliases for working with 2d grids
-// pub mod tiles_3d {
-//     use bevy::ecs::system::Commands;
+/// Helper aliases for working with 3d grids
+pub mod tiles_3d {
+    use bevy_tiles::commands::TileMapCommands;
 
-//     /// 3d [crate::tiles::TileCoord] alias.
-//     pub type TileCoord = crate::tiles::TileCoord<3>;
+    /// 2d [crate::tiles::TileCoord] alias.
+    pub type TileCoord = crate::entity_tile::TileCoord<3>;
 
-//     /// 3d [crate::tiles::TileMapQuery] alias.
-//     pub type TileMapQuery<'w, 's, Q> = crate::tiles::TileMapQuery<'w, 's, Q, 3>;
+    /// 2d [crate::tiles::TileEntityMapQuery] alias.
+    pub type TileEntityMapQuery<'w, 's, Q, F> = crate::tiles::TileEntityMapQuery<'w, 's, Q, F, 3>;
 
-//     /// 3d [crate::chunks::ChunkCoord] alias.
-//     pub type ChunkCoord = crate::chunks::ChunkCoord<3>;
+    /// 2d [crate::commands::TileCommandExt] alias.
+    pub trait TileMapCommandsECSExt: crate::commands::TileMapCommandsECSExt<3> {}
 
-//     /// 3d [crate::chunks::ChunkMapQuery] alias.
-//     pub type ChunkMapQuery<'w, 's, Q, F = ()> = crate::chunks::ChunkMapQuery<'w, 's, Q, F, 3>;
-
-//     /// 3d [crate::commands::TileMapCommands] alias.
-//     pub type TileMapCommands<'a, 'w, 's, const N: usize> =
-//         crate::commands::TileMapCommands<'a, 'w, 's, 3>;
-
-//     /// 3d [crate::commands::TileCommandExt] alias.
-//     pub trait TileCommandExt<'w, 's>: crate::commands::TileCommandExt<'w, 's, 3> {}
-
-//     impl<'w, 's> TileCommandExt<'w, 's> for Commands<'w, 's> {}
-// }
+    impl<'a> TileMapCommandsECSExt for TileMapCommands<'a, 3> {}
+}
 
 /// Adds Tiles dependencies to the App.
 pub struct TilesPlugin;

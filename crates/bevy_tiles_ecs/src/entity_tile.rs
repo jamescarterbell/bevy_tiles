@@ -11,6 +11,7 @@ use bevy_tiles::{
 };
 
 #[derive(Deref, DerefMut, Clone, Copy, Debug, PartialEq, Eq)]
+/// TileComponent for tracking entities.
 pub struct EntityTile(pub Entity);
 
 impl TileData for EntityTile {

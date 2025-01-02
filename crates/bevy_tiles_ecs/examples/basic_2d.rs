@@ -1,5 +1,3 @@
-use std::iter::repeat;
-
 use bevy::{prelude::*, DefaultPlugins};
 use bevy_tiles::{commands::TileCommandExt, coords::CoordIterator, TilesPlugin};
 use bevy_tiles_ecs::{
