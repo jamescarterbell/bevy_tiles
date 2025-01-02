@@ -11,12 +11,18 @@ use bevy::app::Plugin;
 
 /// Provides commands for interacting with tilemaps.
 pub mod commands;
+mod entity_tile;
 /// Provides tile level utilities.
 pub mod tiles;
+
+pub(crate) use entity_tile::EntityTile;
 
 /// Helper aliases for working with 2d grids
 pub mod tiles_2d {
     use bevy_tiles::commands::TileMapCommands;
+
+    /// 2d [crate::tiles::TileCoord] alias.
+    pub type TileCoord = crate::entity_tile::TileCoord<2>;
 
     /// 2d [crate::tiles::TileEntityMapQuery] alias.
     pub type TileEntityMapQuery<'w, 's, Q, F> = crate::tiles::TileEntityMapQuery<'w, 's, Q, F, 2>;

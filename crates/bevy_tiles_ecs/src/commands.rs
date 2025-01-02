@@ -6,18 +6,28 @@ use bevy::{
     utils::{hashbrown::hash_map::Entry, HashMap},
 };
 
-// mod tile_batch;
+mod tile_batch;
 mod tile_single;
 
-use bevy_tiles::{commands::TileMapCommands, queries::TileBundle};
-// use tile_batch::*;
+use bevy_tiles::{commands::TileMapCommands, queries::TileComponent};
+use tile_batch::*;
 use tile_single::*;
+
+use crate::EntityTile;
 
 /// ECS extensions for bevy_tiles.
 pub trait TileMapCommandsECSExt<const N: usize> {
     /// Spawns a tile and returns a handle to the underlying entity.
     /// This will despawn any tile that already exists in this coordinate
     fn spawn_tile(&mut self, tile_c: impl Into<[i32; N]>, bundle: impl Bundle) -> EntityCommands;
+
+    /// Spawns a tile and returns a handle to the underlying entity.
+    /// This will despawn any tile that already exists in this coordinate
+    fn spawn_tile_batch(
+        &mut self,
+        tile_cs: impl IntoIterator<Item = [i32; N]> + Send + 'static,
+        bundles: impl Bundle + Clone,
+    ) -> &mut Self;
 
     /// Despawns a tile .
     fn despawn_tile(&mut self, tile_c: impl Into<[i32; N]>) -> &mut Self;
@@ -40,26 +50,13 @@ impl<'a, const N: usize> TileMapCommandsECSExt<N> for TileMapCommands<'a, N> {
         let tile_c = tile_c.into();
         let tile_id = self.commands().spawn(bundle).id();
         let map_id = self.id();
-        self.commands().queue(SpawnTile {
+        self.commands().queue(SpawnTile::<N> {
             map_id,
             tile_c,
-            tile_id,
+            tile_id: EntityTile(tile_id),
         });
         self.commands_mut().entity(tile_id)
     }
-
-    // /// Spawns tiles from the given iterator using the given function.
-    // /// This will despawn any tile that already exists in this coordinate
-    // pub fn spawn_tile_batch<F, B, IC>(&mut self, tile_cs: IC, bundle_f: F) -> &mut Self
-    // where
-    //     F: Fn([i32; N]) -> B + Send + 'static,
-    //     B: Bundle + Send + 'static,
-    //     IC: IntoIterator<Item = [i32; N]> + Send + 'static,
-    // {
-    //     self.commands
-    //         .spawn_tile_batch(self.map_id, tile_cs, bundle_f);
-    //     self
-    // }
 
     /// Despawns a tile.
     fn despawn_tile(&mut self, tile_c: impl Into<[i32; N]>) -> &mut Self {
@@ -69,15 +66,6 @@ impl<'a, const N: usize> TileMapCommandsECSExt<N> for TileMapCommands<'a, N> {
 
         self
     }
-
-    // /// Despawns tiles from the given iterator.
-    // pub fn despawn_tile_batch<IC>(&mut self, tile_cs: IC) -> &mut Self
-    // where
-    //     IC: IntoIterator<Item = [i32; N]> + Send + 'static,
-    // {
-    //     self.commands.despawn_tile_batch(self.map_id, tile_cs);
-    //     self
-    // }
 
     /// Moves a tile from one coordinate to another, overwriting and despawning any tile in the new coordinate.
     fn move_tile(&mut self, old_c: impl Into<[i32; N]>, new_c: impl Into<[i32; N]>) -> &mut Self {
@@ -92,16 +80,6 @@ impl<'a, const N: usize> TileMapCommandsECSExt<N> for TileMapCommands<'a, N> {
 
         self
     }
-
-    // /// Move tiles from the first coordinate to the second coordinate, despawning
-    // /// any tile found in the second coordinate.
-    // pub fn move_tile_batch<IC>(&mut self, tile_cs: IC) -> &mut Self
-    // where
-    //     IC: IntoIterator<Item = ([i32; N], [i32; N])> + Send + 'static,
-    // {
-    //     self.commands.move_tile_batch(self.map_id, tile_cs);
-    //     self
-    // }
 
     /// Swaps two tiles if both exist, or moves one tile if the other doesn't exist.
     fn swap_tiles(
@@ -121,12 +99,18 @@ impl<'a, const N: usize> TileMapCommandsECSExt<N> for TileMapCommands<'a, N> {
         self
     }
 
-    // /// Swap tiles from the first coordinate and the second coordinate
-    // pub fn swap_tile_batch<IC>(&mut self, tile_cs: IC) -> &mut Self
-    // where
-    //     IC: IntoIterator<Item = ([i32; N], [i32; N])> + Send + 'static,
-    // {
-    //     self.commands.swap_tile_batch(self.map_id, tile_cs);
-    //     self
-    // }
+    fn spawn_tile_batch(
+        &mut self,
+        tile_cs: impl IntoIterator<Item = [i32; N]> + Send + 'static,
+        tile_b: impl Bundle + Clone,
+    ) -> &mut Self {
+        let map_id = self.id();
+        let commands = self.commands_mut();
+        commands.queue(SpawnTileBatch::<_, _, N> {
+            map_id,
+            tile_cs,
+            tile_b,
+        });
+        self
+    }
 }

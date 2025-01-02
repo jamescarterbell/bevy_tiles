@@ -17,7 +17,6 @@ opt-level = 3
 [dependencies]
 bevy = { workspace = true }
 bevy_tiles = { workspace = true }
-bimap = { workspace = true }
 
 [dev-dependencies]
 rstest = { workspace = true }

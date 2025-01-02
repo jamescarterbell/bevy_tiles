@@ -26,9 +26,6 @@ pub mod tiles;
 pub mod tiles_2d {
     use bevy::ecs::system::Commands;
 
-    /// 2d [crate::tiles::TileCoord] alias.
-    pub type TileCoord = crate::tiles::TileCoord<2>;
-
     /// 2d [crate::tiles::TileMapQuery] alias.
     pub type TileMapQuery<'w, 's, Q> = crate::tiles::TileMapQuery<'w, 's, Q, 2>;
 
@@ -50,9 +47,6 @@ pub mod tiles_2d {
 /// Helper aliases for working with 2d grids
 pub mod tiles_3d {
     use bevy::ecs::system::Commands;
-
-    /// 3d [crate::tiles::TileCoord] alias.
-    pub type TileCoord = crate::tiles::TileCoord<3>;
 
     /// 3d [crate::tiles::TileMapQuery] alias.
     pub type TileMapQuery<'w, 's, Q> = crate::tiles::TileMapQuery<'w, 's, Q, 3>;

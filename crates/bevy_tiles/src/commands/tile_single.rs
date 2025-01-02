@@ -5,20 +5,20 @@ use bevy::{
     prelude::Command,
 };
 
-use crate::{maps::TileMap, queries::TileBundle};
+use crate::{maps::TileMap, queries::TileComponent};
 
 use super::{insert_tile, take_tile, TempRemove};
 
 pub struct InsertTile<B, const N: usize>
 where
-    B: TileBundle,
+    B: TileComponent,
 {
     pub map_id: Entity,
     pub tile_c: [i32; N],
     pub bundle: B,
 }
 
-impl<B: TileBundle, const N: usize> Command for InsertTile<B, N> {
+impl<B: TileComponent, const N: usize> Command for InsertTile<B, N> {
     fn apply(self, world: &mut World) {
         let Some(mut map) = world.temp_remove::<TileMap<N>>(self.map_id) else {
             panic!("No tilemap found!")
@@ -30,7 +30,7 @@ impl<B: TileBundle, const N: usize> Command for InsertTile<B, N> {
 
 pub struct RemoveTile<B, const N: usize>
 where
-    B: TileBundle,
+    B: TileComponent,
 {
     pub map_id: Entity,
     pub tile_c: [i32; N],
@@ -39,7 +39,7 @@ where
 
 impl<B, const N: usize> Command for RemoveTile<B, N>
 where
-    B: TileBundle,
+    B: TileComponent,
 {
     fn apply(self, world: &mut World) {
         let Some(mut map) = world.temp_remove::<TileMap<N>>(self.map_id) else {

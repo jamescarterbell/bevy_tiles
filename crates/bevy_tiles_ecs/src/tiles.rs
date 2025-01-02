@@ -13,8 +13,9 @@ use bevy_tiles::{
         max_tile_index, CoordIterator,
     },
     queries::TileDataQuery,
-    tiles::InChunk,
 };
+
+use crate::{entity_tile::InChunk, EntityTile};
 
 /// Used to query individual tiles from a tile map.
 /// This query also implicitly queries chunks and maps
@@ -26,7 +27,7 @@ where
     F: QueryFilter + 'static,
 {
     tile_q: Query<'w, 's, Q, (F, With<InChunk>)>,
-    chunk_q: ChunkMapQuery<'w, 's, <Entity as TileDataQuery>::Source, With<InMap>, N>,
+    chunk_q: ChunkMapQuery<'w, 's, <EntityTile as TileDataQuery>::Source, With<InMap>, N>,
 }
 
 impl<'w, 's, Q, F, const N: usize> TileEntityMapQuery<'w, 's, Q, F, N>
@@ -65,7 +66,7 @@ where
     F: QueryFilter + 'static,
 {
     tile_q: Query<'w, 's, Q, (F, With<InChunk>)>,
-    chunk_q: ChunkQuery<'a, 'w, 's, <Entity as TileDataQuery>::Source, With<InMap>, N>,
+    chunk_q: ChunkQuery<'a, 'w, 's, <EntityTile as TileDataQuery>::Source, With<InMap>, N>,
 }
 
 impl<'a, 'w, 's, Q, F, const N: usize> TileEntityQuery<'a, 'w, 's, Q, F, N>
@@ -99,7 +100,7 @@ where
         let chunk_c = calculate_chunk_coordinate(tile_c, self.chunk_q.map.get_chunk_size());
         let chunk_e = self.chunk_q.get_at(chunk_c)?;
         let tile_id = chunk_e.get(tile_i)?;
-        self.tile_q.get(*tile_id).ok()
+        self.tile_q.get(**tile_id).ok()
     }
 
     /// Gets the query item for the given tile.
@@ -112,7 +113,7 @@ where
         let chunk_c = calculate_chunk_coordinate(tile_c, self.chunk_q.map.get_chunk_size());
         let chunk_e = self.chunk_q.get_at(chunk_c)?;
         let tile_id = chunk_e.get(tile_i)?;
-        self.tile_q.get_mut(*tile_id).ok()
+        self.tile_q.get_mut(**tile_id).ok()
     }
 
     /// Gets the query item for the given tile.
@@ -127,7 +128,7 @@ where
         let chunk_c = calculate_chunk_coordinate(tile_c, self.chunk_q.map.get_chunk_size());
         let chunk_e = self.chunk_q.get_at(chunk_c)?;
         let tile_id = chunk_e.get(tile_i)?;
-        self.tile_q.get_unchecked(*tile_id).ok()
+        self.tile_q.get_unchecked(**tile_id).ok()
     }
 
     /// Iterate over all the tiles in a given space, starting at `corner_1`

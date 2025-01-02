@@ -4,35 +4,29 @@ use bevy::{
 };
 use bevy_tiles::{
     commands::{insert_tile, take_tile, TempRemove},
-    coords::calculate_chunk_coordinate,
     maps::TileMap,
-    tiles::{InChunk, TileCoord, TileIndex},
 };
 
-pub struct SpawnTile<const N: usize = 2> {
+use crate::EntityTile;
+
+pub struct SpawnTile<const N: usize> {
     pub map_id: Entity,
     pub tile_c: [i32; N],
-    pub tile_id: Entity,
+    pub tile_id: EntityTile,
 }
 
 impl<const N: usize> Command for SpawnTile<N> {
     fn apply(self, world: &mut World) {
-        let res = {
+        let replaced = {
             let Some(mut map) = world.temp_remove::<TileMap<N>>(self.map_id) else {
                 panic!("No tilemap found!")
             };
 
-            insert_tile::<Entity, N>(&mut map, self.tile_c, self.tile_id)
+            insert_tile::<EntityTile, N>(&mut map, self.tile_c, self.tile_id)
         };
 
-        world.get_entity_mut(self.tile_id).unwrap().insert((
-            res.tile_index,
-            res.tile_coord,
-            res.chunk_id,
-        ));
-
-        if let Some(replaced) = res.replaced {
-            world.despawn(replaced);
+        if let Some(replaced) = replaced {
+            world.despawn(*replaced);
         }
     }
 }
@@ -49,9 +43,9 @@ impl<const N: usize> Command for DespawnTile<N> {
                 panic!("No tilemap found!")
             };
 
-            take_tile::<Entity, N>(&mut map, self.tile_c)
+            take_tile::<EntityTile, N>(&mut map, self.tile_c)
         } {
-            world.despawn(id);
+            world.despawn(*id);
         }
     }
 }
@@ -72,41 +66,23 @@ impl<const N: usize> Command for SwapTile<N> {
             panic!("No tilemap found!")
         };
 
-        let tile_id_0 = take_tile::<Entity, N>(&mut map, self.tile_c_0);
+        let tile_id_0 = take_tile::<EntityTile, N>(&mut map, self.tile_c_0);
 
-        let tile_id_1 = take_tile::<Entity, N>(&mut map, self.tile_c_1);
+        let tile_id_1 = take_tile::<EntityTile, N>(&mut map, self.tile_c_1);
 
         let res_0 = tile_id_0.map(|tile_id_0| {
             (
                 tile_id_0,
-                insert_tile::<Entity, N>(&mut map, self.tile_c_1, tile_id_0),
+                insert_tile::<EntityTile, N>(&mut map, self.tile_c_1, tile_id_0),
             )
         });
 
         let res_1 = tile_id_1.map(|tile_id_1| {
             (
                 tile_id_1,
-                insert_tile::<Entity, N>(&mut map, self.tile_c_0, tile_id_1),
+                insert_tile::<EntityTile, N>(&mut map, self.tile_c_0, tile_id_1),
             )
         });
-
-        drop(map);
-
-        if let Some((tile_id, res)) = res_0 {
-            world.get_entity_mut(tile_id).unwrap().insert((
-                res.tile_index,
-                res.tile_coord,
-                res.chunk_id,
-            ));
-        }
-
-        if let Some((tile_id, res)) = res_1 {
-            world.get_entity_mut(tile_id).unwrap().insert((
-                res.tile_index,
-                res.tile_coord,
-                res.chunk_id,
-            ));
-        }
     }
 }
 
@@ -118,25 +94,20 @@ pub struct MoveTile<const N: usize> {
 
 impl<const N: usize> Command for MoveTile<N> {
     fn apply(self, world: &mut World) {
-        let (id, res) = {
+        let replaced = {
             let Some(mut map) = world.temp_remove::<TileMap<N>>(self.map_id) else {
                 panic!("No tilemap found!")
             };
 
-            let Some(id) = take_tile::<Entity, N>(&mut map, self.old_c) else {
+            let Some(id) = take_tile::<EntityTile, N>(&mut map, self.old_c) else {
                 println!("Couldn't find the old tile :(");
                 return;
             };
-            (id, insert_tile::<Entity, N>(&mut map, self.new_c, id))
+            insert_tile::<EntityTile, N>(&mut map, self.new_c, id)
         };
 
-        world
-            .get_entity_mut(id)
-            .unwrap()
-            .insert((res.tile_index, res.tile_coord, res.chunk_id));
-
-        if let Some(replaced) = res.replaced {
-            world.despawn(replaced);
+        if let Some(replaced) = replaced {
+            world.despawn(*replaced);
         }
     }
 }

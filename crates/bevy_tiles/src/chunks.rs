@@ -51,7 +51,8 @@ pub struct ChunkData<T> {
 }
 
 impl<T> ChunkData<T> {
-    pub(crate) fn new(chunk_size: usize) -> Self {
+    /// Create a new ChunkData with a given size.
+    pub fn new(chunk_size: usize) -> Self {
         let mut tiles = Vec::new();
         tiles.resize_with(chunk_size, || None);
         Self { tiles, count: 0 }
@@ -85,9 +86,14 @@ impl<T> ChunkData<T> {
         replaced.is_none().then(|| self.count += 1);
         replaced
     }
+
+    /// The current number of items.
+    pub fn get_count(&self) -> usize {
+        self.count
+    }
 }
 
 /// Holds a registry of all data types on a chunk, used to decide
 /// if a chunk deserves to live :).
 #[derive(Component, Default, Debug)]
-pub struct ChunkTypes(pub(crate) HashSet<TypeId>);
+pub struct ChunkTypes(pub HashSet<TypeId>);

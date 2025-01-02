@@ -1,6 +1,11 @@
+use std::iter::repeat;
+
 use bevy::{prelude::*, DefaultPlugins};
-use bevy_tiles::{commands::TileCommandExt, coords::CoordIterator, tiles_2d::*, TilesPlugin};
-use bevy_tiles_ecs::{commands::TileMapCommandsECSExt, tiles_2d::TileEntityMapQuery};
+use bevy_tiles::{commands::TileCommandExt, coords::CoordIterator, TilesPlugin};
+use bevy_tiles_ecs::{
+    commands::TileMapCommandsECSExt,
+    tiles_2d::{TileCoord, TileEntityMapQuery},
+};
 
 fn main() {
     App::new()
@@ -12,7 +17,7 @@ fn main() {
         .run();
 }
 
-#[derive(Component)]
+#[derive(Component, Clone)]
 struct Block;
 
 #[derive(Component)]
@@ -35,13 +40,13 @@ fn spawn(mut commands: Commands, asset_server: Res<AssetServer>) {
     };
 
     // spawn a 10 * 10 room
-    // map.spawn_tile_batch(
-    //     CoordIterator::new([-5, 5], [5, 5])
-    //         .chain(CoordIterator::new([-5, -5], [5, -5]))
-    //         .chain(CoordIterator::new([5, -4], [5, 4]))
-    //         .chain(CoordIterator::new([-5, -4], [-5, 4])),
-    //     move |_| (Block, sprite_bundle.clone()),
-    // );
+    map.spawn_tile_batch(
+        CoordIterator::new([-5, 5], [5, 5])
+            .chain(CoordIterator::new([-5, -5], [5, -5]))
+            .chain(CoordIterator::new([5, -4], [5, 4]))
+            .chain(CoordIterator::new([-5, -4], [-5, 4])),
+        (Block, sprite),
+    );
 
     // spawn a player
     map.spawn_tile(

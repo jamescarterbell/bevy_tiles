@@ -1,24 +1,19 @@
-use std::{
-    cmp::Eq,
-    hash::Hash,
-    ops::{Deref, DerefMut},
-};
+use std::ops::{Deref, DerefMut};
 
 use crate::{
-    chunks::{Chunk, ChunkCoord, ChunkData, ChunkTypes, InMap},
+    chunks::{Chunk, ChunkCoord, ChunkTypes, InMap},
     coords::{calculate_chunk_coordinate, calculate_tile_index},
     maps::TileMap,
-    queries::TileBundle,
-    tiles::{InChunk, TileCoord, TileIndex},
+    queries::TileComponent,
 };
 
 use bevy::{
     ecs::system::EntityCommands,
     prelude::{
-        BuildChildren, Bundle, Commands, Component, Deref, DerefMut, DespawnRecursiveExt, Entity,
+        BuildChildren, Bundle, Commands, Deref, DerefMut, DespawnRecursiveExt, Entity,
         EntityWorldMut, World,
     },
-    utils::{hashbrown::hash_map::Entry, HashMap},
+    utils::hashbrown::{hash_map::Entry, HashMap},
 };
 
 // mod chunk_batch;
@@ -40,7 +35,7 @@ pub struct TileMapCommands<'a, const N: usize> {
 impl<'a, const N: usize> TileMapCommands<'a, N> {
     /// Spawns a tile and returns a handle to the underlying entity.
     /// This will despawn any tile that already exists in this coordinate
-    pub fn insert_tile<B: TileBundle>(&mut self, tile_c: impl Into<[i32; N]>, bundle: B) {
+    pub fn insert_tile<B: TileComponent>(&mut self, tile_c: impl Into<[i32; N]>, bundle: B) {
         let tile_c = tile_c.into();
         let id = self.commands.id();
         self.commands.commands().spawn_tile(id, tile_c, bundle);
@@ -60,7 +55,7 @@ impl<'a, const N: usize> TileMapCommands<'a, N> {
     // }
 
     /// Despawns a tile.
-    pub fn remove_tile<B: TileBundle>(&mut self, tile_c: impl Into<[i32; N]>) -> &mut Self {
+    pub fn remove_tile<B: TileComponent>(&mut self, tile_c: impl Into<[i32; N]>) -> &mut Self {
         let tile_c = tile_c.into();
         let id = self.commands.id();
         self.commands.commands().remove_tile::<B>(id, tile_c);
@@ -130,7 +125,7 @@ pub trait TileCommandExt<'w, 's, const N: usize> {
 
     /// Spawns a tile and returns a handle to the underlying entity.
     /// This will despawn any tile that already exists in this coordinate
-    fn spawn_tile<B: TileBundle>(&mut self, map_id: Entity, tile_c: [i32; N], bundle: B);
+    fn spawn_tile<B: TileComponent>(&mut self, map_id: Entity, tile_c: [i32; N], bundle: B);
 
     // /// Spawns tiles from the given iterator using the given function.
     // /// This will despawn any tile that already exists in this coordinate
@@ -141,7 +136,7 @@ pub trait TileCommandExt<'w, 's, const N: usize> {
     //     IC: IntoIterator<Item = [i32; N]> + Send + 'static;
 
     /// Despawns a tile.
-    fn remove_tile<B: TileBundle>(&mut self, map_id: Entity, tile_c: [i32; N]) -> &mut Self;
+    fn remove_tile<B: TileComponent>(&mut self, map_id: Entity, tile_c: [i32; N]) -> &mut Self;
 
     // /// Despawns tiles from the given iterator.
     // fn despawn_tile_batch<IC>(&mut self, map_id: Entity, tile_cs: IC)
@@ -182,7 +177,7 @@ impl<'w, 's, const N: usize> TileCommandExt<'w, 's, N> for Commands<'w, 's> {
 
     /// Spawns a tile and returns a handle to the underlying entity.
     /// This will despawn any tile that already exists in this coordinate
-    fn spawn_tile<B: TileBundle>(&mut self, map_id: Entity, tile_c: [i32; N], bundle: B) {
+    fn spawn_tile<B: TileComponent>(&mut self, map_id: Entity, tile_c: [i32; N], bundle: B) {
         self.queue(InsertTile::<B, N> {
             map_id,
             tile_c,
@@ -206,7 +201,7 @@ impl<'w, 's, const N: usize> TileCommandExt<'w, 's, N> for Commands<'w, 's> {
     // }
 
     /// Despawns a tile.
-    fn remove_tile<B: TileBundle>(&mut self, map_id: Entity, tile_c: [i32; N]) -> &mut Self {
+    fn remove_tile<B: TileComponent>(&mut self, map_id: Entity, tile_c: [i32; N]) -> &mut Self {
         self.queue(RemoveTile::<B, N> {
             map_id,
             tile_c,
@@ -305,59 +300,77 @@ fn spawn_chunk<'a, const N: usize>(
     map.world.get_entity_mut(chunk_id).unwrap()
 }
 
-/// Result from inserting a tile.
-pub struct InsertTileResult<B: TileBundle, const N: usize> {
-    /// Any replaced tile values.
-    pub replaced: B::Replaced,
-    /// Calculated index in chunk.
-    pub tile_index: TileIndex,
-    /// Calculated coordinate in chunk.
-    pub tile_coord: TileCoord<N>,
-    /// Chunk tile was inserted into.
-    pub chunk_id: InChunk,
-}
-
 /// Inserts a tile into the given map.
 #[inline]
-pub fn insert_tile<B: TileBundle, const N: usize>(
+pub fn insert_tile<B: TileComponent, const N: usize>(
     map: &mut TempRemoved<'_, TileMap<N>>,
     tile_c: [i32; N],
     tile_bundle: B,
-) -> InsertTileResult<B, N> {
+) -> Option<B> {
     let chunk_size = map.get_chunk_size();
 
     // Take the chunk out and get the id to reinsert it
     let chunk_c = calculate_chunk_coordinate(tile_c, chunk_size);
     let chunk = get_or_spawn_chunk::<N>(map, chunk_c);
-    let chunk_id = chunk.id();
 
     // Insert the tile
     let tile_i = calculate_tile_index(tile_c, chunk_size);
 
-    InsertTileResult {
-        replaced: tile_bundle.insert_tile_into_chunk::<N>(chunk, chunk_size, tile_i),
-        tile_index: TileIndex(tile_i),
-        chunk_id: InChunk(chunk_id),
-        tile_coord: TileCoord(tile_c),
+    tile_bundle.insert_tile_into_chunk::<N>(chunk, chunk_c, chunk_size, tile_c, tile_i)
+}
+
+/// Inserts a batch of tiles into the given map.
+/// # NOTE:
+/// The bundle and coord iterators must be the same size!
+#[inline]
+pub fn insert_tile_batch<B: TileComponent, const N: usize>(
+    map: &mut TempRemoved<'_, TileMap<N>>,
+    tile_cs: impl IntoIterator<Item = [i32; N]>,
+    tile_bundles: impl IntoIterator<Item = B>,
+) -> impl Iterator<Item = B> {
+    let chunk_size = map.get_chunk_size();
+    let mut tiles = tile_bundles.into_iter();
+
+    let mut chunk_cs = HashMap::new();
+
+    for tile_c in tile_cs {
+        let chunk_c = calculate_chunk_coordinate(tile_c, chunk_size);
+        let tiles = match chunk_cs.entry(chunk_c) {
+            Entry::Occupied(occupied_entry) => occupied_entry.into_mut(),
+            Entry::Vacant(vacant_entry) => vacant_entry.insert(Vec::new()),
+        };
+        tiles.push((tile_c, calculate_tile_index(tile_c, chunk_size)));
     }
+
+    let mut replaced_vals = Vec::new();
+
+    for (chunk_c, tile_is) in chunk_cs {
+        let chunk = get_or_spawn_chunk::<N>(map, chunk_c);
+        for replaced in B::insert_tile_batch_into_chunk::<N>(
+            &mut tiles,
+            chunk,
+            chunk_c,
+            chunk_size,
+            tile_is.into_iter(),
+        ) {
+            replaced_vals.push(replaced);
+        }
+    }
+    replaced_vals.into_iter()
 }
 
 /// Removes a tile from the given map if it exists.
 #[inline]
-pub fn take_tile<B: TileBundle, const N: usize>(
+pub fn take_tile<B: TileComponent, const N: usize>(
     map: &mut TempRemoved<'_, TileMap<N>>,
     tile_c: [i32; N],
-) -> B::Replaced {
+) -> Option<B> {
     let chunk_size = map.get_chunk_size();
 
     let chunk_c = calculate_chunk_coordinate(tile_c, chunk_size);
     let chunk_c = ChunkCoord::<N>(chunk_c);
-    let Some(chunk_id) = map.get_chunks().get(&chunk_c) else {
-        return B::Replaced::default();
-    };
-    let Some(mut chunk_e) = map.world.get_entity_mut(*chunk_id).ok() else {
-        return B::Replaced::default();
-    };
+    let chunk_id = map.get_chunks().get(&chunk_c)?;
+    let mut chunk_e = map.world.get_entity_mut(*chunk_id).ok()?;
 
     // Insert the tile
     let tile_i = calculate_tile_index(tile_c, chunk_size);
@@ -767,6 +780,13 @@ pub struct TempRemoved<'w, T: Bundle> {
     value: Option<T>,
     world: &'w mut World,
     source: Entity,
+}
+
+impl<'w, T: Bundle> TempRemoved<'w, T> {
+    /// Get the world this value was removed from.
+    pub fn get_world_mut(&mut self) -> &mut World {
+        self.world
+    }
 }
 
 impl<'w, T: Bundle> Drop for TempRemoved<'w, T> {
