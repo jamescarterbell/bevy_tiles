@@ -2,17 +2,17 @@ use bevy::{
     diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
     math::Vec2Swizzles,
     prelude::*,
-    sprite::SpriteBundle,
     window::PrimaryWindow,
     DefaultPlugins,
 };
 use bevy_tiles::{
     commands::TileCommandExt,
     coords::{calculate_chunk_coordinate, world_to_tile, CoordIterator},
-    maps::TileMap,
-    tiles_2d::*,
+    maps::{TileMap, UseTransforms},
+    tiles_2d::{TileDims, TileSpacing},
     TilesPlugin,
 };
+use bevy_tiles_ecs::{commands::TileMapCommandsECSExt, tiles_2d::TileEntityMapQuery};
 use std::ops::{Deref, DerefMut};
 
 fn main() {
@@ -23,11 +23,10 @@ fn main() {
         .add_plugins(FrameTimeDiagnosticsPlugin)
         .add_systems(Startup, spawn)
         .add_systems(Update, (add_damage, check_damage).chain())
-        .add_systems(PostUpdate, sync_tile_transforms)
         .run();
 }
 
-#[derive(Component)]
+#[derive(Component, Clone)]
 struct Block;
 
 #[derive(Component)]
@@ -51,48 +50,57 @@ impl DerefMut for Damage {
 struct GameLayer;
 
 fn spawn(mut commands: Commands, asset_server: Res<AssetServer>) {
+    use bevy_tiles::maps::{TileDims, TileSpacing};
+
     let block = asset_server.load("block.png");
 
-    commands.spawn(Camera2dBundle {
-        projection: OrthographicProjection {
+    commands.spawn((
+        Camera2d,
+        OrthographicProjection {
             scale: 1.0,
-            ..Camera2dBundle::default().projection
+            ..OrthographicProjection::default_2d()
         },
-        ..Default::default()
-    });
-    let mut tile_commands = commands.spawn_map(32, GameLayer);
+    ));
+    let mut tile_commands = commands.spawn_map(32);
+    tile_commands.insert((
+        GameLayer,
+        UseTransforms,
+        TileDims([16.0, 16.0]),
+        TileSpacing([4.0, 4.0]),
+    ));
 
-    let sprite_bundle = SpriteBundle {
-        texture: block,
-        ..Default::default()
-    };
-
-    let size = 200;
+    let size = 100;
 
     tile_commands.spawn_tile_batch(
         CoordIterator::new([-size, -size], [size, size]),
-        move |_| (Block, sprite_bundle.clone()),
+        (
+            Block,
+            Sprite {
+                image: block,
+                ..Default::default()
+            },
+        ),
     );
 }
 
 fn add_damage(
     mut commands: Commands,
-    mut block_maps: TileMapQuery<(Entity, Option<&mut Damage>), With<Block>>,
-    map: Query<(Entity, &TileMap), With<GameLayer>>,
+    mut block_maps: TileEntityMapQuery<(Entity, Option<&mut Damage>), With<Block>>,
+    map: Query<(Entity, &TileMap, &TileDims, &TileSpacing), With<GameLayer>>,
     windows: Query<&Window, With<PrimaryWindow>>,
     camera: Query<(&Camera, &GlobalTransform)>,
     buttons: Res<ButtonInput<MouseButton>>,
 ) {
-    let (map_id, map) = map.single();
+    let (map_id, map, dims, spacing) = map.single();
     let (cam, cam_t) = camera.single();
     let mut blocks = block_maps.get_map_mut(map_id).unwrap();
 
     let cursor_pos = windows
         .single()
         .cursor_position()
-        .and_then(|cursor| cam.viewport_to_world(cam_t, cursor.xy()))
+        .and_then(|cursor| cam.viewport_to_world(cam_t, cursor.xy()).ok())
         .map(|ray| ray.origin.truncate())
-        .map(|pos| world_to_tile(pos, 16.0));
+        .map(|pos| world_to_tile(pos, *dims, Some(*spacing)));
 
     if let Some(damage_pos) = buttons
         .just_pressed(MouseButton::Left)
@@ -115,7 +123,7 @@ fn add_damage(
         .flatten()
     {
         let chunk_c = calculate_chunk_coordinate(damage_pos, map.get_chunk_size());
-        commands.tile_map(map_id).despawn_chunk(chunk_c);
+        commands.tile_map(map_id).unwrap().despawn_chunk(chunk_c);
     }
 }
 
@@ -128,20 +136,8 @@ fn check_damage(
             x if x > 3 => commands.entity(id).despawn(),
             x => {
                 let tint = 1.0 - x as f32 / 3.0;
-                sprite.color = Color::Rgba {
-                    red: 1.0,
-                    green: tint,
-                    blue: tint,
-                    alpha: 1.0,
-                }
+                sprite.color = Color::linear_rgba(1.0, tint, tint, 1.0)
             }
         }
-    }
-}
-
-fn sync_tile_transforms(mut tiles: Query<(&TileCoord, &mut Transform), Changed<TileCoord>>) {
-    for (tile_c, mut transform) in tiles.iter_mut() {
-        transform.translation.x = tile_c[0] as f32 * 16.0;
-        transform.translation.y = tile_c[1] as f32 * 16.0;
     }
 }

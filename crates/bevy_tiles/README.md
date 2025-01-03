@@ -5,7 +5,7 @@
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/OxidizedGames/bevy_tiles/blob/main/LICENSE)
 [![Crates.io](https://img.shields.io/crates/d/bevy_tiles)](https://crates.io/crates/bevy_tiles)
 
-A general purpose grided entity library meant to support tilemap libraries, or other libraries that require accessing entities in a grid based manner.  The goal is to keep the API surface as simple and intuitive as possible, and to avoid deferred operations/states where possible to make the structures more intuitive work with (ex: an update in one system should be seen by the following system, not the following frame when a system has run.). 
+A general purpose grided library meant for adding chunked, gridded storages to bevy.  Since bevy does not expose a custom storage API, instead of being an actual entity storage, each chunk of a given map is treated as an entity, with the components for tiles on said maps stored inside of vectors on the entity.  For most cases, this works well as a tilemap storage solution, but if treating individual tiles as entities is desired, you can instead utilize [bevy_tiles_ecs](https://crates.io/crates/bevy_tiles_ecs) to handle the entity <-> mapping.  The goal is to keep the API surface as simple and intuitive as possible, and to avoid deferred operations/states where possible to make the structures more intuitive work with (ex: an update in one system should be seen by the following system, not the following frame when a system has run.). 
 
 # Features
 
@@ -17,10 +17,8 @@ Currently, `bevy_tiles` supports the following:
 * Map based quiries
 * Spatial queries
 * Batched operations for better performance on large groups of tiles or chunks
-
-Upcoming features:
 * Automagically handle hierarchical deletes.
-* Sort tiles in memory based on chunk and map (will require bevy API additions in the future).
+
 
 # API
 
@@ -67,8 +65,8 @@ More examples can be found in the [examples](/examples) folder!
 
 # Versions
 
-| Bevy version | bevy_tiles verison |
-|--------------|--------------------|
-| 0.13         | 0.2                |
-| 0.12         | 0.1                |
-| 0.11         | 0.1-dev            |
+| Bevy version  | bevy_tiles verison |
+|---------------|--------------------|
+| 0.15          | 0.2                |
+| 0.12          | 0.1                |
+| 0.11          | 0.1-dev            |

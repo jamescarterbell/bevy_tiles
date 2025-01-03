@@ -1,6 +1,6 @@
 [package]
-name = "bevy_tiles"
-version = "0.2.0"
+name = "bevy_tiles_ecs"
+version = "0.1.0"
 edition.workspace = true
 authors.workspace = true
 license-file.workspace = true
@@ -15,11 +15,12 @@ opt-level = 1
 opt-level = 3
 
 [dependencies]
-bevy = {workspace = true}
+bevy = { workspace = true }
+bevy_tiles = { workspace = true }
 
 [dev-dependencies]
-rstest = {workspace = true}
-bevy = {workspace = true, default-features = true}
+rstest = { workspace = true }
+bevy = { workspace = true, default-features = true }
 
 [lints]
 workspace = true

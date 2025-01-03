@@ -1,3 +1,5 @@
+use crate::maps::{TileDims, TileSpacing};
+
 /// Calculate the coordinate of a chunk from a given tile coordinate and chunk size
 #[inline]
 pub fn calculate_chunk_coordinate<const N: usize>(
@@ -11,6 +13,22 @@ pub fn calculate_chunk_coordinate<const N: usize>(
             i / chunk_size as i32
         }
     })
+}
+
+/// Calculate the coordinate of a tile relative to the origin of it's chunk.
+#[inline]
+pub fn calculate_chunk_relative_tile_coordinate_from_index<const N: usize>(
+    mut tile_i: usize,
+    chunk_size: usize,
+) -> [usize; N] {
+    let mut coord = [0; N];
+    for i in (1..=(N - 1)).rev() {
+        let res = tile_i / chunk_size;
+        coord[i] = res;
+        tile_i -= res * chunk_size;
+    }
+    coord[0] = tile_i;
+    coord
 }
 
 /// Calculate the coordinate of a tile relative to the origin of it's chunk.
@@ -72,10 +90,23 @@ pub fn max_tile_index<const N: usize>(chunk_size: usize) -> usize {
 /// (For example, if tiles are being represented by 16x16 pixel sprites,
 /// the scale factor should be set to 16)
 #[inline]
-pub fn world_to_tile<const N: usize>(world_c: impl Into<[f32; N]>, scale_f: f32) -> [i32; N] {
-    world_c
-        .into()
-        .map(|c| (c / scale_f - if c < 0.0 { 1.0 } else { 0.0 }) as i32)
+pub fn world_to_tile<const N: usize>(
+    world_c: impl Into<[f32; N]>,
+    dims: TileDims<N>,
+    spacing: Option<TileSpacing<N>>,
+) -> [i32; N] {
+    let mut tile = [0; N];
+    let world_c = world_c.into();
+    for i in 0..N {
+        let dim = dims.0[i]
+            + if let Some(ref spacing) = spacing {
+                spacing.0[i]
+            } else {
+                0.0
+            };
+        tile[i] = (world_c[i] / dim - if dim < 0.0 { 1.0 } else { 0.0 }) as i32
+    }
+    tile
 }
 
 /// Allows for iteration between all coordinates in between two corners.

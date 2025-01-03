@@ -1,15 +1,20 @@
-use bevy::{prelude::*, sprite::SpriteBundle, DefaultPlugins};
-use bevy_tiles::{commands::TileCommandExt, tiles_2d::*, TilesPlugin};
+use bevy::{prelude::*, DefaultPlugins};
+use bevy_tiles::{
+    commands::TileCommandExt,
+    maps::{TileDims, TileSpacing, UseTransforms},
+    TilesPlugin,
+};
+use bevy_tiles_ecs::commands::TileMapCommandsECSExt;
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(TilesPlugin)
-        .add_systems(Startup, (spawn, sync_tile_transforms).chain())
+        .add_systems(Startup, spawn)
         .run();
 }
 
-#[derive(Component)]
+#[derive(Component, Clone)]
 struct Block;
 
 #[derive(Component)]
@@ -18,16 +23,17 @@ struct GameLayer;
 fn spawn(mut commands: Commands, asset_server: Res<AssetServer>) {
     let block = asset_server.load("block.png");
 
-    commands.spawn(Camera2dBundle {
-        transform: Transform::from_translation(Vec3::new(480.0, 32.0, 0.0)),
-        ..Default::default()
-    });
-    let mut map = commands.spawn_map(16, GameLayer);
-
-    let sprite_bundle = SpriteBundle {
-        texture: block,
-        ..Default::default()
-    };
+    commands.spawn((
+        Camera2d,
+        Transform::from_translation(Vec3::new(480.0, 32.0, 0.0)),
+    ));
+    let mut map = commands.spawn_map(16);
+    map.insert((
+        GameLayer,
+        UseTransforms,
+        TileDims([16.0, 16.0]),
+        TileSpacing([0.0, 0.0]),
+    ));
 
     let logo = r#"
 eeeee  eeee e    e e    e       eeee8 eeeee e     eeee  eeeee 
@@ -47,14 +53,14 @@ eeeee  eeee e    e e    e       eeee8 eeeee e     eeee  eeeee
     });
 
     // spawn a 10 * 10 room
-    map.spawn_tile_batch(logo.collect::<Vec<[i32; 2]>>(), move |_| {
-        (Block, sprite_bundle.clone())
-    });
-}
-
-fn sync_tile_transforms(mut tiles: Query<(&TileCoord, &mut Transform), Changed<TileCoord>>) {
-    for (tile_c, mut transform) in tiles.iter_mut() {
-        transform.translation.x = tile_c[0] as f32 * 16.0;
-        transform.translation.y = tile_c[1] as f32 * 16.0;
-    }
+    map.spawn_tile_batch(
+        logo.collect::<Vec<[i32; 2]>>(),
+        (
+            Block,
+            Sprite {
+                image: block,
+                ..Default::default()
+            },
+        ),
+    );
 }
