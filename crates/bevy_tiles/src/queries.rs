@@ -5,7 +5,10 @@ use bevy::{
     prelude::{Bundle, Component, Entity, EntityWorldMut},
 };
 
-use crate::chunks::{ChunkData, ChunkTypes};
+use crate::{
+    chunks::{ChunkData, ChunkTypes},
+    maps::{TileDims, TileSpacing},
+};
 
 /// Marks a data type as.
 pub trait TileDataQuery {
@@ -80,6 +83,9 @@ pub unsafe trait TileComponent: Sized + Send + Sync + 'static {
         chunk: EntityWorldMut<'_>,
         chunk_c: [i32; N],
         chunk_size: usize,
+        use_transforms: bool,
+        tile_dims: Option<TileDims<N>>,
+        tile_spacing: Option<TileSpacing<N>>,
         tile_c: [i32; N],
         tile_i: usize,
     ) -> Option<Self>;
@@ -90,6 +96,9 @@ pub unsafe trait TileComponent: Sized + Send + Sync + 'static {
         chunk: EntityWorldMut<'_>,
         chunk_c: [i32; N],
         chunk_size: usize,
+        use_transforms: bool,
+        tile_dims: Option<TileDims<N>>,
+        tile_spacing: Option<TileSpacing<N>>,
         tile_is: impl Iterator<Item = ([i32; N], usize)>,
     ) -> impl Iterator<Item = Self>;
 

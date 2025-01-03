@@ -39,10 +39,6 @@ impl From<IVec3> for ChunkCoord<3> {
     }
 }
 
-/// Holds handles to all the tiles in a chunk.
-#[derive(Default, Component, Debug)]
-pub struct Chunk;
-
 /// Holds data for tiles in chunk.
 #[derive(Component, Debug)]
 pub struct ChunkData<T> {

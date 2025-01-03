@@ -9,10 +9,12 @@ use bevy::{
 };
 
 use crate::{
-    chunks::{Chunk, ChunkCoord, InMap},
+    chunks::{ChunkCoord, InMap},
     coords::CoordIterator,
     maps::TileMap,
 };
+
+use super::ChunkTypes;
 
 /// Used to query chunks from any tile map.
 /// This query also implicitly queries maps
@@ -23,7 +25,7 @@ where
     Q: QueryData + 'static,
     F: QueryFilter + 'static,
 {
-    chunk_q: Query<'w, 's, Q, (F, With<InMap>, With<Chunk>)>,
+    chunk_q: Query<'w, 's, Q, (F, With<InMap>, With<ChunkTypes>)>,
     map_q: Query<'w, 's, &'static TileMap<N>>,
 }
 
@@ -61,7 +63,7 @@ where
     Q: QueryData + 'static,
     F: QueryFilter + 'static,
 {
-    chunk_q: Query<'w, 's, Q, (F, With<InMap>, With<Chunk>)>,
+    chunk_q: Query<'w, 's, Q, (F, With<InMap>, With<ChunkTypes>)>,
     /// The map being read.
     pub map: &'a TileMap<N>,
 }

@@ -2,21 +2,16 @@ use bevy::{
     diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
     math::Vec2Swizzles,
     prelude::*,
-    sprite::SpriteBundle,
     window::PrimaryWindow,
     DefaultPlugins,
 };
 use bevy_tiles::{
     commands::TileCommandExt,
     coords::{calculate_chunk_coordinate, world_to_tile, CoordIterator},
-    maps::TileMap,
-    tiles_2d::*,
+    maps::{TileDims, TileMap, UseTransforms},
     TilesPlugin,
 };
-use bevy_tiles_ecs::{
-    commands::TileMapCommandsECSExt,
-    tiles_2d::{TileCoord, TileEntityMapQuery},
-};
+use bevy_tiles_ecs::{commands::TileMapCommandsECSExt, tiles_2d::TileEntityMapQuery};
 use std::ops::{Deref, DerefMut};
 
 fn main() {
@@ -27,7 +22,6 @@ fn main() {
         .add_plugins(FrameTimeDiagnosticsPlugin)
         .add_systems(Startup, spawn)
         .add_systems(Update, (add_damage, check_damage).chain())
-        .add_systems(PostUpdate, sync_tile_transforms)
         .run();
 }
 
@@ -65,7 +59,7 @@ fn spawn(mut commands: Commands, asset_server: Res<AssetServer>) {
         },
     ));
     let mut tile_commands = commands.spawn_map(32);
-    tile_commands.insert(GameLayer);
+    tile_commands.insert((GameLayer, UseTransforms, TileDims([16.0, 16.0])));
 
     let size = 100;
 
@@ -121,7 +115,7 @@ fn add_damage(
         .flatten()
     {
         let chunk_c = calculate_chunk_coordinate(damage_pos, map.get_chunk_size());
-        //commands.tile_map(map_id).despawn_chunk(chunk_c);
+        commands.tile_map(map_id).unwrap().despawn_chunk(chunk_c);
     }
 }
 
@@ -137,12 +131,5 @@ fn check_damage(
                 sprite.color = Color::linear_rgba(1.0, tint, tint, 1.0)
             }
         }
-    }
-}
-
-fn sync_tile_transforms(mut tiles: Query<(&TileCoord, &mut Transform), Changed<TileCoord>>) {
-    for (tile_c, mut transform) in tiles.iter_mut() {
-        transform.translation.x = tile_c[0] as f32 * 16.0;
-        transform.translation.y = tile_c[1] as f32 * 16.0;
     }
 }

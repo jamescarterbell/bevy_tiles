@@ -15,6 +15,22 @@ pub fn calculate_chunk_coordinate<const N: usize>(
 
 /// Calculate the coordinate of a tile relative to the origin of it's chunk.
 #[inline]
+pub fn calculate_chunk_relative_tile_coordinate_from_index<const N: usize>(
+    mut tile_i: usize,
+    chunk_size: usize,
+) -> [usize; N] {
+    let mut coord = [0; N];
+    for i in (1..=(N - 1)).rev() {
+        let res = tile_i / chunk_size;
+        coord[i] = res;
+        tile_i -= res * chunk_size;
+    }
+    coord[0] = tile_i;
+    coord
+}
+
+/// Calculate the coordinate of a tile relative to the origin of it's chunk.
+#[inline]
 pub fn calculate_chunk_relative_tile_coordinate<const N: usize>(
     tile_c: impl Into<[i32; N]>,
     chunk_size: usize,

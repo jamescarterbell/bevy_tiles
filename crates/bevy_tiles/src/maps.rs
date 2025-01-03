@@ -1,5 +1,6 @@
 use bevy::{
     ecs::{component::Component, entity::Entity},
+    prelude::{Deref, DerefMut},
     utils::HashMap,
 };
 
@@ -52,3 +53,19 @@ impl<const N: usize> TileMap<N> {
         self.chunk_size
     }
 }
+
+/// Marker component for whether or not this map should use transforms.
+/// # Note:
+/// Removing this does not remove the transforms from all the children of this map.
+#[derive(Component, Copy, Clone, Debug)]
+pub struct UseTransforms;
+
+/// The size of a tile along each axis.  Add this to a [`TileMap`] for child chunks
+/// and tiles to have proper spacing based on tile size.
+#[derive(Component, Copy, Clone, Debug, Deref, DerefMut)]
+pub struct TileDims<const N: usize>(pub [f32; N]);
+
+/// The space between tiles along each axis.Add this to a [`TileMap`] for child chunks
+/// and tiles to have proper spacing based on tile spacing.
+#[derive(Component, Copy, Clone, Debug, Deref, DerefMut)]
+pub struct TileSpacing<const N: usize>(pub [f32; N]);

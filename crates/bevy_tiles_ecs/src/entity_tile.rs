@@ -3,10 +3,18 @@ use std::any::TypeId;
 use bevy::{
     ecs::query::WorldQuery,
     math::{IVec2, IVec3, Vec2, Vec3},
-    prelude::{Component, Deref, DerefMut, Entity, EntityWorldMut},
+    prelude::{
+        BuildChildren, BuildChildrenTransformExt, Component, Deref, DerefMut, Entity,
+        EntityWorldMut, InheritedVisibility, Transform, Visibility,
+    },
 };
 use bevy_tiles::{
     chunks::{ChunkData, ChunkTypes},
+    coords::{
+        calculate_chunk_relative_tile_coordinate,
+        calculate_chunk_relative_tile_coordinate_from_index,
+    },
+    maps::{TileDims, TileSpacing},
     queries::{ReadOnlyTileData, TileComponent, TileData, TileDataQuery},
 };
 
@@ -36,13 +44,15 @@ impl TileDataQuery for EntityTile {
 
 /// # Safety:
 /// Probably safe.
-/// MAKE THIS NOT A DEFAULT IMPL
 unsafe impl TileComponent for EntityTile {
     fn insert_tile_into_chunk<const N: usize>(
         self,
         mut chunk: EntityWorldMut<'_>,
         chunk_c: [i32; N],
         chunk_size: usize,
+        use_transforms: bool,
+        tile_dims: Option<TileDims<N>>,
+        tile_spacing: Option<TileSpacing<N>>,
         tile_c: [i32; N],
         tile_i: usize,
     ) -> Option<Self> {
@@ -65,12 +75,22 @@ unsafe impl TileComponent for EntityTile {
 
         let chunk_id = chunk.id();
 
+        let tile_t =
+            calc_tile_transform(use_transforms, tile_dims, tile_spacing, tile_i, chunk_size);
+
         chunk.world_scope(|world| {
-            world.get_entity_mut(*self).unwrap().insert((
-                TileIndex(tile_i),
-                TileCoord(tile_c),
-                InChunk(chunk_id),
-            ));
+            world
+                .get_entity_mut(*self)
+                .unwrap()
+                .insert((
+                    tile_t.unwrap_or_default(),
+                    Visibility::default(),
+                    InheritedVisibility::default(),
+                    TileIndex(tile_i),
+                    TileCoord(tile_c),
+                    InChunk(chunk_id),
+                ))
+                .set_parent(chunk_id);
         });
 
         res
@@ -96,6 +116,9 @@ unsafe impl TileComponent for EntityTile {
         mut chunk: EntityWorldMut<'_>,
         chunk_c: [i32; N],
         chunk_size: usize,
+        use_transforms: bool,
+        tile_dims: Option<TileDims<N>>,
+        tile_spacing: Option<TileSpacing<N>>,
         tile_is: impl Iterator<Item = ([i32; N], usize)>,
     ) -> impl Iterator<Item = Self> {
         let chunk_id = chunk.id();
@@ -115,12 +138,22 @@ unsafe impl TileComponent for EntityTile {
         for ((tile_c, tile_i), tile) in tile_is.zip(tiles) {
             let res = chunk_data.insert(tile_i, tile);
 
+            let tile_t =
+                calc_tile_transform(use_transforms, tile_dims, tile_spacing, tile_i, chunk_size);
+
             chunk.world_scope(|world| {
-                world.get_entity_mut(*tile).unwrap().insert((
-                    TileIndex(tile_i),
-                    TileCoord(tile_c),
-                    InChunk(chunk_id),
-                ));
+                world
+                    .get_entity_mut(*tile)
+                    .unwrap()
+                    .insert((
+                        tile_t.unwrap_or_default(),
+                        Visibility::default(),
+                        InheritedVisibility::default(),
+                        TileIndex(tile_i),
+                        TileCoord(tile_c),
+                        InChunk(chunk_id),
+                    ))
+                    .set_parent(chunk_id);
             });
 
             if let Some(res) = res {
@@ -131,6 +164,62 @@ unsafe impl TileComponent for EntityTile {
         chunk.insert(chunk_data);
         removed.into_iter()
     }
+}
+
+#[inline]
+fn calc_tile_transform<const N: usize>(
+    use_transforms: bool,
+    tile_dims: Option<TileDims<N>>,
+    tile_spacing: Option<TileSpacing<N>>,
+    tile_i: usize,
+    chunk_size: usize,
+) -> Option<Transform> {
+    if !use_transforms {
+        return None;
+    }
+    match tile_dims {
+        Some(tile_dims) => {
+            let tile_c = calculate_chunk_relative_tile_coordinate_from_index(tile_i, chunk_size);
+            let translation = match N {
+                1 => Vec3::new(
+                    calc_tile_trans_dim(0, tile_c, tile_dims, tile_spacing),
+                    0.0,
+                    0.0,
+                ),
+                2 => Vec3::new(
+                    calc_tile_trans_dim(0, tile_c, tile_dims, tile_spacing),
+                    calc_tile_trans_dim(1, tile_c, tile_dims, tile_spacing),
+                    0.0,
+                ),
+                3 => Vec3::new(
+                    calc_tile_trans_dim(0, tile_c, tile_dims, tile_spacing),
+                    calc_tile_trans_dim(1, tile_c, tile_dims, tile_spacing),
+                    calc_tile_trans_dim(2, tile_c, tile_dims, tile_spacing),
+                ),
+                _ => {
+                    panic!("Can't use transforms on tilemaps with more than 3 dimensions :)");
+                }
+            };
+            Some(Transform {
+                translation,
+                ..Default::default()
+            })
+        }
+        _ => None,
+    }
+}
+
+#[inline]
+fn calc_tile_trans_dim<const N: usize>(
+    dim: usize,
+    tile_c: [usize; N],
+    dims: TileDims<N>,
+    spacing: Option<TileSpacing<N>>,
+) -> f32 {
+    dims.0[dim] * (tile_c[dim] as f32)
+        + spacing
+            .map(|spacing| spacing.0[dim] * (tile_c[dim] as f32))
+            .unwrap_or(0.0)
 }
 
 /// The index of a tile in a given chunk.

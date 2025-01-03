@@ -1,5 +1,10 @@
 use bevy::{prelude::*, DefaultPlugins};
-use bevy_tiles::{commands::TileCommandExt, coords::CoordIterator, TilesPlugin};
+use bevy_tiles::{
+    commands::TileCommandExt,
+    coords::CoordIterator,
+    maps::{TileDims, TileSpacing, UseTransforms},
+    TilesPlugin,
+};
 use bevy_tiles_ecs::{
     commands::TileMapCommandsECSExt,
     tiles_2d::{TileCoord, TileEntityMapQuery},
@@ -11,7 +16,6 @@ fn main() {
         .add_plugins(TilesPlugin)
         .add_systems(Startup, spawn)
         .add_systems(Update, move_character)
-        .add_systems(PostUpdate, sync_tile_transforms)
         .run();
 }
 
@@ -30,7 +34,12 @@ fn spawn(mut commands: Commands, asset_server: Res<AssetServer>) {
 
     commands.spawn(Camera2d);
     let mut map = commands.spawn_map(16);
-    map.insert(GameLayer);
+    map.insert((
+        GameLayer,
+        UseTransforms,
+        TileDims([16.0, 16.0]),
+        TileSpacing([4.0, 4.0]),
+    ));
 
     let sprite = Sprite {
         image: block,
@@ -83,11 +92,5 @@ fn move_character(
             .tile_map(map_id)
             .unwrap()
             .move_tile(char_c, new_coord);
-    }
-}
-
-fn sync_tile_transforms(mut tiles: Query<(&TileCoord, &mut Transform), Changed<TileCoord>>) {
-    for (tile_c, mut transform) in tiles.iter_mut() {
-        transform.translation = Vec3::from((Vec2::from(*tile_c) * Vec2::ONE * 16.0, 0.0));
     }
 }

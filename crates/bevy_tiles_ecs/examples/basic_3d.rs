@@ -2,11 +2,16 @@ use std::f32::consts::PI;
 
 use bevy::{
     color::palettes::css::{BLUE, GREEN},
-    pbr::{CascadeShadowConfig, CascadeShadowConfigBuilder},
+    pbr::CascadeShadowConfigBuilder,
     prelude::*,
     DefaultPlugins,
 };
-use bevy_tiles::{commands::TileCommandExt, coords::CoordIterator, tiles_3d::*, TilesPlugin};
+use bevy_tiles::{
+    commands::TileCommandExt,
+    coords::CoordIterator,
+    maps::{TileDims, UseTransforms},
+    TilesPlugin,
+};
 use bevy_tiles_ecs::{
     commands::TileMapCommandsECSExt,
     tiles_3d::{TileCoord, TileEntityMapQuery},
@@ -18,7 +23,6 @@ fn main() {
         .add_plugins(TilesPlugin)
         .add_systems(Startup, spawn)
         .add_systems(Update, move_character)
-        .add_systems(PostUpdate, sync_tile_transforms)
         .run();
 }
 
@@ -60,7 +64,7 @@ fn spawn(
     ));
 
     let mut tile_commands = commands.spawn_map(16);
-    tile_commands.insert(GameLayer);
+    tile_commands.insert((GameLayer, UseTransforms, TileDims([16.0, 16.0, 16.0])));
 
     // spawn a 10 * 10 room
     tile_commands.spawn_tile_batch(
@@ -131,13 +135,5 @@ fn move_character(
             .tile_map(map_id)
             .unwrap()
             .move_tile(char_c, new_coord);
-    }
-}
-
-fn sync_tile_transforms(mut tiles: Query<(&TileCoord, &mut Transform), Changed<TileCoord>>) {
-    for (tile_c, mut transform) in tiles.iter_mut() {
-        transform.translation.x = tile_c[0] as f32;
-        transform.translation.y = tile_c[1] as f32;
-        transform.translation.z = tile_c[2] as f32;
     }
 }
