@@ -38,7 +38,7 @@ impl<const N: usize> Command for DespawnChunk<N> {
         };
 
         if let Some(chunk) = get_chunk::<N>(&mut map, self.chunk_c) {
-            chunk.despawn_recursive();
+            chunk.try_despawn_recursive();
         }
         map.get_chunks_mut().remove(&ChunkCoord(self.chunk_c));
     }

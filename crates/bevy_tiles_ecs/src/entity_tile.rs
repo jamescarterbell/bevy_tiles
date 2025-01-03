@@ -108,7 +108,12 @@ unsafe impl TileComponent for EntityTile {
                 .remove(&TypeId::of::<Self>());
             chunk.remove::<ChunkData<Self>>();
         }
-        removed
+        if let Some(removed) = removed {
+            chunk.remove_children(&[*removed]);
+            Some(removed)
+        } else {
+            None
+        }
     }
 
     fn insert_tile_batch_into_chunk<const N: usize>(

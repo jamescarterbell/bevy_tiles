@@ -8,7 +8,8 @@ use bevy::{
 use bevy_tiles::{
     commands::TileCommandExt,
     coords::{calculate_chunk_coordinate, world_to_tile, CoordIterator},
-    maps::{TileDims, TileMap, UseTransforms},
+    maps::{TileMap, UseTransforms},
+    tiles_2d::{TileDims, TileSpacing},
     TilesPlugin,
 };
 use bevy_tiles_ecs::{commands::TileMapCommandsECSExt, tiles_2d::TileEntityMapQuery};
@@ -49,6 +50,8 @@ impl DerefMut for Damage {
 struct GameLayer;
 
 fn spawn(mut commands: Commands, asset_server: Res<AssetServer>) {
+    use bevy_tiles::maps::{TileDims, TileSpacing};
+
     let block = asset_server.load("block.png");
 
     commands.spawn((
@@ -59,7 +62,12 @@ fn spawn(mut commands: Commands, asset_server: Res<AssetServer>) {
         },
     ));
     let mut tile_commands = commands.spawn_map(32);
-    tile_commands.insert((GameLayer, UseTransforms, TileDims([16.0, 16.0])));
+    tile_commands.insert((
+        GameLayer,
+        UseTransforms,
+        TileDims([16.0, 16.0]),
+        TileSpacing([4.0, 4.0]),
+    ));
 
     let size = 100;
 
@@ -78,12 +86,12 @@ fn spawn(mut commands: Commands, asset_server: Res<AssetServer>) {
 fn add_damage(
     mut commands: Commands,
     mut block_maps: TileEntityMapQuery<(Entity, Option<&mut Damage>), With<Block>>,
-    map: Query<(Entity, &TileMap), With<GameLayer>>,
+    map: Query<(Entity, &TileMap, &TileDims, &TileSpacing), With<GameLayer>>,
     windows: Query<&Window, With<PrimaryWindow>>,
     camera: Query<(&Camera, &GlobalTransform)>,
     buttons: Res<ButtonInput<MouseButton>>,
 ) {
-    let (map_id, map) = map.single();
+    let (map_id, map, dims, spacing) = map.single();
     let (cam, cam_t) = camera.single();
     let mut blocks = block_maps.get_map_mut(map_id).unwrap();
 
@@ -92,7 +100,7 @@ fn add_damage(
         .cursor_position()
         .and_then(|cursor| cam.viewport_to_world(cam_t, cursor.xy()).ok())
         .map(|ray| ray.origin.truncate())
-        .map(|pos| world_to_tile(pos, 16.0));
+        .map(|pos| world_to_tile(pos, *dims, Some(*spacing)));
 
     if let Some(damage_pos) = buttons
         .just_pressed(MouseButton::Left)
