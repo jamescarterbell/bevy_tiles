@@ -1,11 +1,14 @@
 use std::any::TypeId;
 
 use bevy::{
-    ecs::query::WorldQuery,
+    ecs::{
+        hierarchy::ChildOf,
+        query::{QueryData, WorldQuery},
+    },
     math::{IVec2, IVec3, Vec2, Vec3},
     prelude::{
-        BuildChildren, BuildChildrenTransformExt, Component, Deref, DerefMut, Entity,
-        EntityWorldMut, InheritedVisibility, Transform, Visibility,
+        Component, Deref, DerefMut, Entity, EntityWorldMut, InheritedVisibility, Transform,
+        Visibility,
     },
 };
 use bevy_tiles::{
@@ -30,14 +33,14 @@ impl TileData for EntityTile {
 unsafe impl ReadOnlyTileData for EntityTile {}
 
 impl TileQueryData for EntityTile {
-    type Item<'a> = EntityTile;
+    type Item<'w, 's> = EntityTile;
 
     type Source = &'static ChunkData<EntityTile>;
 
-    fn get<'a>(
-        source: <<Self as TileQueryData>::Source as WorldQuery>::Item<'_>,
+    fn get<'w, 's, 'i: 's>(
+        source: <<Self as TileQueryData>::Source as QueryData>::Item<'w, 's>,
         index: usize,
-    ) -> Option<Self::Item<'_>> {
+    ) -> Option<Self::Item<'w, 'i>> {
         source.get(index).cloned()
     }
 }
@@ -79,18 +82,15 @@ unsafe impl TileComponent for EntityTile {
             calc_tile_transform(use_transforms, tile_dims, tile_spacing, tile_i, chunk_size);
 
         chunk.world_scope(|world| {
-            world
-                .get_entity_mut(*self)
-                .unwrap()
-                .insert((
-                    tile_t.unwrap_or_default(),
-                    Visibility::default(),
-                    InheritedVisibility::default(),
-                    TileIndex(tile_i),
-                    TileCoord(tile_c),
-                    InChunk(chunk_id),
-                ))
-                .set_parent(chunk_id);
+            world.get_entity_mut(*self).unwrap().insert((
+                tile_t.unwrap_or_default(),
+                Visibility::default(),
+                InheritedVisibility::default(),
+                TileIndex(tile_i),
+                TileCoord(tile_c),
+                InChunk(chunk_id),
+                ChildOf(chunk_id),
+            ));
         });
 
         res
@@ -147,18 +147,15 @@ unsafe impl TileComponent for EntityTile {
                 calc_tile_transform(use_transforms, tile_dims, tile_spacing, tile_i, chunk_size);
 
             chunk.world_scope(|world| {
-                world
-                    .get_entity_mut(*tile)
-                    .unwrap()
-                    .insert((
-                        tile_t.unwrap_or_default(),
-                        Visibility::default(),
-                        InheritedVisibility::default(),
-                        TileIndex(tile_i),
-                        TileCoord(tile_c),
-                        InChunk(chunk_id),
-                    ))
-                    .set_parent(chunk_id);
+                world.get_entity_mut(*tile).unwrap().insert((
+                    tile_t.unwrap_or_default(),
+                    Visibility::default(),
+                    InheritedVisibility::default(),
+                    TileIndex(tile_i),
+                    TileCoord(tile_c),
+                    InChunk(chunk_id),
+                    ChildOf(chunk_id),
+                ));
             });
 
             if let Some(res) = res {

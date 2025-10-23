@@ -1,15 +1,12 @@
-use std::{cmp::Eq, hash::Hash};
-
 use bevy::{
-    ecs::system::EntityCommands,
-    prelude::{Bundle, Commands, Entity, World},
-    utils::{hashbrown::hash_map::Entry, HashMap},
+    ecs::{bundle::NoBundleEffect, system::EntityCommands},
+    prelude::{Bundle},
 };
 
 mod tile_batch;
 mod tile_single;
 
-use bevy_tiles::{commands::TileMapCommands, queries::TileComponent};
+use bevy_tiles::{commands::TileMapCommands};
 use tile_batch::*;
 use tile_single::*;
 
@@ -19,14 +16,14 @@ use crate::EntityTile;
 pub trait TileMapCommandsECSExt<const N: usize> {
     /// Spawns a tile and returns a handle to the underlying entity.
     /// This will despawn any tile that already exists in this coordinate
-    fn spawn_tile(&mut self, tile_c: impl Into<[i32; N]>, bundle: impl Bundle) -> EntityCommands;
+    fn spawn_tile(&mut self, tile_c: impl Into<[i32; N]>, bundle: impl Bundle) -> EntityCommands<'_>;
 
     /// Spawns a tile and returns a handle to the underlying entity.
     /// This will despawn any tile that already exists in this coordinate
     fn spawn_tile_batch(
         &mut self,
         tile_cs: impl IntoIterator<Item = [i32; N]> + Send + 'static,
-        bundles: impl Bundle + Clone,
+        bundles: impl Bundle<Effect: NoBundleEffect> + Clone,
     ) -> &mut Self;
 
     /// Despawns a tile .
@@ -46,7 +43,7 @@ pub trait TileMapCommandsECSExt<const N: usize> {
 impl<'a, const N: usize> TileMapCommandsECSExt<N> for TileMapCommands<'a, N> {
     /// Spawns a tile and returns a handle to the underlying entity.
     /// This will despawn any tile that already exists at the coordinate.
-    fn spawn_tile(&mut self, tile_c: impl Into<[i32; N]>, bundle: impl Bundle) -> EntityCommands {
+    fn spawn_tile(&mut self, tile_c: impl Into<[i32; N]>, bundle: impl Bundle) -> EntityCommands<'_> {
         let tile_c = tile_c.into();
         let tile_id = self.commands().spawn(bundle).id();
         let map_id = self.id();
@@ -102,7 +99,7 @@ impl<'a, const N: usize> TileMapCommandsECSExt<N> for TileMapCommands<'a, N> {
     fn spawn_tile_batch(
         &mut self,
         tile_cs: impl IntoIterator<Item = [i32; N]> + Send + 'static,
-        tile_b: impl Bundle + Clone,
+        tile_b: impl Bundle<Effect: NoBundleEffect> + Clone,
     ) -> &mut Self {
         let map_id = self.id();
         let commands = self.commands_mut();

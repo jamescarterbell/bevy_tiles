@@ -1,10 +1,7 @@
 use std::f32::consts::PI;
 
 use bevy::{
-    color::palettes::css::{BLUE, GREEN},
-    pbr::CascadeShadowConfigBuilder,
-    prelude::*,
-    DefaultPlugins,
+    color::palettes::css::{BLUE, GREEN}, light::CascadeShadowConfigBuilder, prelude::*, DefaultPlugins
 };
 use bevy_tiles::{
     commands::TileCommandExt,
@@ -64,7 +61,7 @@ fn spawn(
     ));
 
     let mut tile_commands = commands.spawn_map(16);
-    tile_commands.insert((GameLayer, UseTransforms, TileDims([16.0, 16.0, 16.0])));
+    tile_commands.insert((GameLayer, UseTransforms, TileDims([1.0, 1.0, 1.0])));
 
     // spawn a 10 * 10 room
     tile_commands.spawn_tile_batch(
@@ -115,7 +112,7 @@ fn move_character(
     character: Query<&TileCoord, With<Character>>,
     walls_maps: TileEntityMapQuery<(), With<Block>>,
 ) {
-    let map_id = map.single();
+    let map_id = map.single().unwrap();
     let walls = walls_maps.get_map(map_id).unwrap();
 
     let x = keyboard_input.just_pressed(KeyCode::KeyD) as i32
@@ -127,7 +124,7 @@ fn move_character(
     let z = keyboard_input.just_pressed(KeyCode::KeyS) as i32
         - keyboard_input.just_pressed(KeyCode::KeyW) as i32;
 
-    let char_c = IVec3::from(*character.get_single().unwrap());
+    let char_c = IVec3::from(*character.single().unwrap());
     let new_coord = [char_c[0] + x, char_c[1] + y, char_c[2] + z];
 
     if walls.get_at(new_coord).is_none() {

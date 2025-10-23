@@ -20,7 +20,7 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_plugins(TilesPlugin)
         .add_plugins(LogDiagnosticsPlugin::default())
-        .add_plugins(FrameTimeDiagnosticsPlugin)
+        .add_plugins(FrameTimeDiagnosticsPlugin::default())
         .add_systems(Startup, spawn)
         .add_systems(Update, (add_damage, check_damage).chain())
         .run();
@@ -54,13 +54,7 @@ fn spawn(mut commands: Commands, asset_server: Res<AssetServer>) {
 
     let block = asset_server.load("block.png");
 
-    commands.spawn((
-        Camera2d,
-        OrthographicProjection {
-            scale: 1.0,
-            ..OrthographicProjection::default_2d()
-        },
-    ));
+    commands.spawn(Camera2d);
     let mut tile_commands = commands.spawn_map(32);
     tile_commands.insert((
         GameLayer,
@@ -91,12 +85,13 @@ fn add_damage(
     camera: Query<(&Camera, &GlobalTransform)>,
     buttons: Res<ButtonInput<MouseButton>>,
 ) {
-    let (map_id, map, dims, spacing) = map.single();
-    let (cam, cam_t) = camera.single();
+    let (map_id, map, dims, spacing) = map.single().unwrap();
+    let (cam, cam_t) = camera.single().unwrap();
     let mut blocks = block_maps.get_map_mut(map_id).unwrap();
 
     let cursor_pos = windows
         .single()
+        .unwrap()
         .cursor_position()
         .and_then(|cursor| cam.viewport_to_world(cam_t, cursor.xy()).ok())
         .map(|ray| ray.origin.truncate())

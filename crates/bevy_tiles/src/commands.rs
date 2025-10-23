@@ -6,18 +6,14 @@ use crate::{
     maps::{TileDims, TileMap, TileSpacing, UseTransforms},
     queries::TileComponent,
 };
-
 use bevy::{
-    ecs::{
+    camera::visibility::{InheritedVisibility, Visibility}, ecs::{
         component::Component, entity::EntityDoesNotExistError, hierarchy::ChildOf,
         system::EntityCommands,
-    },
-    math::Vec3,
-    platform::collections::{hash_map::Entry, HashMap},
-    prelude::{
-        Bundle, Commands, Deref, DerefMut, Entity, EntityWorldMut, InheritedVisibility, Transform,
-        Visibility, World,
-    },
+    }, math::Vec3, platform::collections::{hash_map::Entry, HashMap}, prelude::{
+        Bundle, Commands, Deref, DerefMut, Entity, EntityWorldMut, Transform,
+        World,
+    }
 };
 
 // mod chunk_batch;

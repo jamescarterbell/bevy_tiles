@@ -75,7 +75,7 @@ fn move_character(
     character: Query<&TileCoord, With<Character>>,
     walls_maps: TileEntityMapQuery<(), With<Block>>,
 ) {
-    let map_id = map.single();
+    let map_id = map.single().unwrap();
     let walls = walls_maps.get_map(map_id).unwrap();
 
     let x = keyboard_input.just_pressed(KeyCode::KeyD) as i32
@@ -84,7 +84,7 @@ fn move_character(
     let y = keyboard_input.just_pressed(KeyCode::KeyW) as i32
         - keyboard_input.just_pressed(KeyCode::KeyS) as i32;
 
-    let char_c = IVec2::from(*character.get_single().unwrap());
+    let char_c = IVec2::from(*character.single().unwrap());
     let new_coord = char_c + IVec2::new(x, y);
 
     if (x != 0 || y != 0) && walls.get_at(new_coord).is_none() {

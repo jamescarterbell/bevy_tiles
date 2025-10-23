@@ -1,6 +1,9 @@
 use std::iter::repeat;
 
-use bevy::prelude::{Bundle, Command, Entity, World};
+use bevy::{
+    ecs::bundle::NoBundleEffect,
+    prelude::{Bundle, Command, Entity, World},
+};
 use bevy_tiles::{
     commands::{insert_tile_batch, TempRemove},
     maps::TileMap,
@@ -17,7 +20,7 @@ pub struct SpawnTileBatch<TC, TB, const N: usize> {
 impl<TC, TB, const N: usize> Command for SpawnTileBatch<TC, TB, N>
 where
     TC: Send + IntoIterator<Item = [i32; N]> + 'static,
-    TB: Bundle + Clone,
+    TB: Bundle<Effect: NoBundleEffect> + Clone,
 {
     fn apply(self, world: &mut World) {
         let replaced = {

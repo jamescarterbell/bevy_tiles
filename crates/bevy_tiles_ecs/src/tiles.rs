@@ -1,7 +1,7 @@
 use bevy::{
     ecs::{
         entity::Entity,
-        query::{QueryData, QueryFilter, With, WorldQuery},
+        query::{QueryData, QueryFilter, With},
         system::SystemParam,
     },
     prelude::Query,
@@ -30,26 +30,26 @@ where
     chunk_q: ChunkMapQuery<'w, 's, <EntityTile as TileQueryData>::Source, With<InMap>, N>,
 }
 
-impl<'w, 's, Q, F, const N: usize> TileEntityMapQuery<'w, 's, Q, F, N>
+impl<'w: 's, 's, Q, F, const N: usize> TileEntityMapQuery<'w, 's, Q, F, N>
 where
     Q: QueryData + 'static,
     F: QueryFilter + 'static,
 {
     /// Gets the query for a given map.
-    pub fn get_map(
-        &self,
+    pub fn get_map<'a>(
+        &'a self,
         map_id: Entity,
-    ) -> Option<TileEntityQuery<'_, '_, 's, Q::ReadOnly, F, N>> {
+    ) -> Option<TileEntityQuery<'a, 'a, 's, Q::ReadOnly, F, N>> {
         let chunk_q = self.chunk_q.get_map(map_id)?;
 
         Some(TileEntityQuery {
-            tile_q: self.tile_q.to_readonly(),
+            tile_q: self.tile_q.as_readonly(),
             chunk_q,
         })
     }
 
     /// Gets the query for a given map.
-    pub fn get_map_mut(&mut self, map_id: Entity) -> Option<TileEntityQuery<'_, '_, 's, Q, F, N>> {
+    pub fn get_map_mut<'a>(&'a mut self, map_id: Entity) -> Option<TileEntityQuery<'a, 'a, 's, Q, F, N>> {
         let chunk_q = self.chunk_q.get_map_mut(map_id)?;
 
         Some(TileEntityQuery {
@@ -75,9 +75,9 @@ where
     F: QueryFilter + 'static,
 {
     /// Get the readonly variant of this query.
-    pub fn to_readonly(&self) -> TileEntityQuery<'_, '_, 's, Q::ReadOnly, F, N> {
+    pub fn as_readonly(&self) -> TileEntityQuery<'_, '_, 's, Q::ReadOnly, F, N> {
         TileEntityQuery {
-            tile_q: self.tile_q.to_readonly(),
+            tile_q: self.tile_q.as_readonly(),
             chunk_q: self.chunk_q.as_readonly(),
         }
     }
@@ -94,7 +94,7 @@ where
     pub fn get_at(
         &self,
         tile_c: impl Into<[i32; N]>,
-    ) -> Option<<Q::ReadOnly as WorldQuery>::Item<'_>> {
+    ) -> Option<<Q::ReadOnly as QueryData>::Item<'_, 's>> {
         let tile_c = tile_c.into();
         let tile_i = calculate_tile_index(tile_c, self.chunk_q.map.get_chunk_size());
         let chunk_c = calculate_chunk_coordinate(tile_c, self.chunk_q.map.get_chunk_size());
@@ -107,7 +107,7 @@ where
     pub fn get_at_mut(
         &mut self,
         tile_c: impl Into<[i32; N]>,
-    ) -> Option<<Q as WorldQuery>::Item<'_>> {
+    ) -> Option<<Q as QueryData>::Item<'_, 's>> {
         let tile_c = tile_c.into();
         let tile_i = calculate_tile_index(tile_c, self.chunk_q.map.get_chunk_size());
         let chunk_c = calculate_chunk_coordinate(tile_c, self.chunk_q.map.get_chunk_size());
@@ -122,7 +122,7 @@ where
     pub unsafe fn get_at_unchecked(
         &self,
         tile_c: impl Into<[i32; N]>,
-    ) -> Option<<Q as WorldQuery>::Item<'_>> {
+    ) -> Option<<Q as QueryData>::Item<'_, 's>> {
         let tile_c = tile_c.into();
         let tile_i = calculate_tile_index(tile_c, self.chunk_q.map.get_chunk_size());
         let chunk_c = calculate_chunk_coordinate(tile_c, self.chunk_q.map.get_chunk_size());
@@ -141,7 +141,7 @@ where
         let corner_1 = corner_1.into();
         let corner_2 = corner_2.into();
         // SAFETY: This thing is uses manual mem management
-        unsafe { TileEntityQueryIter::from_owned(self.to_readonly(), corner_1, corner_2) }
+        unsafe { TileEntityQueryIter::from_owned(self.as_readonly(), corner_1, corner_2) }
     }
 
     /// Iterate over all the tiles in a given space, starting at `corner_1`
@@ -265,7 +265,7 @@ where
     Q: QueryData + 'static,
     F: QueryFilter + 'static,
 {
-    type Item = <Q as WorldQuery>::Item<'a>;
+    type Item = <Q as QueryData>::Item<'a, 's>;
 
     #[allow(clippy::while_let_on_iterator)]
     fn next(&mut self) -> Option<Self::Item> {
@@ -279,8 +279,8 @@ where
                 // this returned itemed will keep the original borrow used to make the iterator alive in the mind of the compiler.
                 return unsafe {
                     std::mem::transmute::<
-                        std::option::Option<<Q as WorldQuery>::Item<'_>>,
-                        std::option::Option<<Q as WorldQuery>::Item<'_>>,
+                        std::option::Option<<Q as QueryData>::Item<'_, 's>>,
+                        std::option::Option<<Q as QueryData>::Item<'_, 's>>,
                     >(tile)
                 };
             }
