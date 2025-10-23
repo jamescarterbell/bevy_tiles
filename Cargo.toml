@@ -10,8 +10,8 @@ edition = "2021"
 authors = ["James Bell <jamescarterbell@gmail.com>"]
 license = "MIT"
 license-file = "LICENSE-MIT"
-repository = "https://github.com/OxidizedGames/bevy_tiles"
-homepage = "https://github.com/OxidizedGames/bevy_tiles"
+repository = "https://github.com/jamescarterbell/bevy_tiles"
+homepage = "https://github.com/jamescarterbell/bevy_tiles"
 
 [workspace.profile.dev]
 opt-level = 1
@@ -20,7 +20,7 @@ opt-level = 1
 opt-level = 3
 
 [workspace.dependencies]
-bevy = { version = "0.15", default-features = false }
+bevy = { version = "0.17", default-features = false }
 bevy_tiles = { path = "crates/bevy_tiles" }
 rstest = "0.18.2"
 

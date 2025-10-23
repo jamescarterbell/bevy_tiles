@@ -3,8 +3,8 @@ use std::any::TypeId;
 use bevy::{
     ecs::{component::Component, entity::Entity},
     math::{IVec2, IVec3},
+    platform::collections::HashSet,
     prelude::Deref,
-    utils::HashSet,
 };
 
 mod chunk_query;

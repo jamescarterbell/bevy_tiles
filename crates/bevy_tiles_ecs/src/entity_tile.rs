@@ -15,7 +15,7 @@ use bevy_tiles::{
         calculate_chunk_relative_tile_coordinate_from_index,
     },
     maps::{TileDims, TileSpacing},
-    queries::{ReadOnlyTileData, TileComponent, TileData, TileDataQuery},
+    queries::{ReadOnlyTileData, TileComponent, TileData, TileQueryData},
 };
 
 #[derive(Deref, DerefMut, Clone, Copy, Debug, PartialEq, Eq)]
@@ -29,13 +29,13 @@ impl TileData for EntityTile {
 /// Safety: Entity is readonly.
 unsafe impl ReadOnlyTileData for EntityTile {}
 
-impl TileDataQuery for EntityTile {
+impl TileQueryData for EntityTile {
     type Item<'a> = EntityTile;
 
     type Source = &'static ChunkData<EntityTile>;
 
     fn get<'a>(
-        source: <<Self as TileDataQuery>::Source as WorldQuery>::Item<'_>,
+        source: <<Self as TileQueryData>::Source as WorldQuery>::Item<'_>,
         index: usize,
     ) -> Option<Self::Item<'_>> {
         source.get(index).cloned()

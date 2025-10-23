@@ -8,13 +8,16 @@ use crate::{
 };
 
 use bevy::{
-    ecs::system::EntityCommands,
-    math::Vec3,
-    prelude::{
-        BuildChildren, Bundle, Commands, Deref, DerefMut, DespawnRecursiveExt, Entity,
-        EntityWorldMut, InheritedVisibility, Transform, Visibility, World,
+    ecs::{
+        component::Component, entity::EntityDoesNotExistError, hierarchy::ChildOf,
+        system::EntityCommands,
     },
-    utils::hashbrown::{hash_map::Entry, HashMap},
+    math::Vec3,
+    platform::collections::{hash_map::Entry, HashMap},
+    prelude::{
+        Bundle, Commands, Deref, DerefMut, Entity, EntityWorldMut, InheritedVisibility, Transform,
+        Visibility, World,
+    },
 };
 
 // mod chunk_batch;
@@ -123,7 +126,10 @@ impl<'a, const N: usize> TileMapCommands<'a, N> {
 /// Helper method for creating map specific commands.
 pub trait TileCommandExt<'w, 's, const N: usize> {
     /// Gets [TileMapCommands] to apply commands at the tile map level.
-    fn tile_map(&mut self, map_id: Entity) -> Option<TileMapCommands<'_, N>>;
+    fn tile_map(
+        &mut self,
+        map_id: Entity,
+    ) -> Result<TileMapCommands<'_, N>, EntityDoesNotExistError>;
 
     /// Spawns a tile and returns a handle to the underlying entity.
     /// This will despawn any tile that already exists in this coordinate
@@ -172,7 +178,10 @@ pub trait TileCommandExt<'w, 's, const N: usize> {
 }
 
 impl<'w, 's, const N: usize> TileCommandExt<'w, 's, N> for Commands<'w, 's> {
-    fn tile_map(&mut self, map_id: Entity) -> Option<TileMapCommands<'_, N>> {
+    fn tile_map(
+        &mut self,
+        map_id: Entity,
+    ) -> Result<TileMapCommands<'_, N>, EntityDoesNotExistError> {
         self.get_entity(map_id)
             .map(|commands| TileMapCommands { commands })
     }
@@ -260,7 +269,7 @@ impl<'w, 's, const N: usize> TileCommandExt<'w, 's, N> for Commands<'w, 's> {
 
     /// Recursively despawns a map and all it's chunks and tiles.
     fn despawn_map(&mut self, map_id: Entity) -> &mut Self {
-        self.reborrow().entity(map_id).despawn_recursive();
+        self.reborrow().entity(map_id).despawn();
         self
     }
 }
@@ -368,20 +377,20 @@ fn spawn_chunk<'a, const N: usize>(
                     Visibility::default(),
                     InheritedVisibility::default(),
                     ChunkCoord(chunk_c.0),
-                    InMap(map.source),
                     ChunkTypes::default(),
+                    InMap(map.source),
+                    ChildOf(map.source),
                 ))
-                .set_parent(map.source)
                 .id()
         }
         (_, _) => map
             .world
             .spawn((
                 ChunkCoord(chunk_c.0),
-                InMap(map.source),
                 ChunkTypes::default(),
+                InMap(map.source),
+                ChildOf(map.source),
             ))
-            .set_parent(map.source)
             .id(),
     };
 
@@ -567,12 +576,12 @@ impl<'w, T: Bundle> DerefMut for TempRemoved<'w, T> {
 /// and put them back when done using them automatically.
 pub trait TempRemove {
     /// Remove components and return a reference to the world and the removed components.
-    fn temp_remove<T: Bundle>(&mut self, id: Entity) -> Option<TempRemoved<'_, T>>;
+    fn temp_remove<T: Component>(&mut self, id: Entity) -> Option<TempRemoved<'_, T>>;
 }
 
 impl TempRemove for World {
     #[inline]
-    fn temp_remove<T: Bundle>(&mut self, id: Entity) -> Option<TempRemoved<'_, T>> {
+    fn temp_remove<T: Component>(&mut self, id: Entity) -> Option<TempRemoved<'_, T>> {
         self.get_entity_mut(id)
             .ok()
             .and_then(|mut ent| ent.take::<T>().map(|val| (ent.id(), val)))

@@ -6,7 +6,7 @@ use crate::{
         calculate_chunk_coordinate, calculate_tile_coordinate, calculate_tile_index,
         max_tile_index, CoordIterator,
     },
-    queries::{TileData, TileDataQuery},
+    queries::{TileData, TileQueryData},
 };
 
 /// Used to query individual tiles from a tile map.
@@ -17,7 +17,7 @@ pub struct TileMapQuery<'w, 's, Q, const N: usize = 2>
 where
     Q: TileData + 'static,
 {
-    chunk_q: ChunkMapQuery<'w, 's, <Q as TileDataQuery>::Source, With<InMap>, N>,
+    chunk_q: ChunkMapQuery<'w, 's, <Q as TileQueryData>::Source, With<InMap>, N>,
 }
 
 impl<'w, 's, Q, const N: usize> TileMapQuery<'w, 's, Q, N>
@@ -44,7 +44,7 @@ pub struct TileQuery<'a, 'w, 's, Q, const N: usize = 2>
 where
     Q: TileData + 'static,
 {
-    chunk_q: ChunkQuery<'a, 'w, 's, <Q as TileDataQuery>::Source, With<InMap>, N>,
+    chunk_q: ChunkQuery<'a, 'w, 's, <Q as TileQueryData>::Source, With<InMap>, N>,
 }
 
 impl<'a, 'w, 's, Q, const N: usize> TileQuery<'a, 'w, 's, Q, N>
@@ -52,9 +52,9 @@ where
     Q: TileData + 'static,
 {
     /// Get the readonly variant of this query.
-    pub fn to_readonly(&self) -> TileQuery<'_, '_, 's, Q::ReadOnly, N> {
+    pub fn as_readonly(&self) -> TileQuery<'_, '_, 's, Q::ReadOnly, N> {
         TileQuery {
-            chunk_q: self.chunk_q.to_readonly(),
+            chunk_q: self.chunk_q.as_readonly(),
         }
     }
 
@@ -69,20 +69,20 @@ where
     pub fn get_at(
         &self,
         tile_c: impl Into<[i32; N]>,
-    ) -> Option<<<Q as TileData>::ReadOnly as TileDataQuery>::Item<'_>> {
+    ) -> Option<<<Q as TileData>::ReadOnly as TileQueryData>::Item<'_, 's>> {
         let tile_c = tile_c.into();
         let tile_i = calculate_tile_index(tile_c, self.chunk_q.map.get_chunk_size());
         let chunk_c = calculate_chunk_coordinate(tile_c, self.chunk_q.map.get_chunk_size());
         let tile_e = self.chunk_q.get_at(chunk_c)?;
 
-        <<Q as TileData>::ReadOnly as TileDataQuery>::get(tile_e, tile_i)
+        <<Q as TileData>::ReadOnly as TileQueryData>::get(tile_e, tile_i)
     }
 
     /// Gets the query item for the given tile.
     pub fn get_at_mut(
         &mut self,
         tile_c: impl Into<[i32; N]>,
-    ) -> Option<<Q as TileDataQuery>::Item<'_>> {
+    ) -> Option<<Q as TileQueryData>::Item<'_, 's>> {
         let tile_c = tile_c.into();
         let tile_i = calculate_tile_index(tile_c, self.chunk_q.map.get_chunk_size());
         let chunk_c = calculate_chunk_coordinate(tile_c, self.chunk_q.map.get_chunk_size());
@@ -97,7 +97,7 @@ where
     pub unsafe fn get_at_unchecked(
         &self,
         tile_c: impl Into<[i32; N]>,
-    ) -> Option<<Q as TileDataQuery>::Item<'_>> {
+    ) -> Option<<Q as TileQueryData>::Item<'_, 's>> {
         let tile_c = tile_c.into();
         let tile_i = calculate_tile_index(tile_c, self.chunk_q.map.get_chunk_size());
         let chunk_c = calculate_chunk_coordinate(tile_c, self.chunk_q.map.get_chunk_size());
@@ -116,7 +116,7 @@ where
         let corner_1 = corner_1.into();
         let corner_2 = corner_2.into();
         // SAFETY: This thing is uses manual mem management
-        unsafe { TileQueryIter::from_owned(self.to_readonly(), corner_1, corner_2) }
+        unsafe { TileQueryIter::from_owned(self.as_readonly(), corner_1, corner_2) }
     }
 
     /// Iterate over all the tiles in a given space, starting at `corner_1`
@@ -237,7 +237,7 @@ impl<'a, 's, Q, const N: usize> Iterator for TileQueryIter<'a, 's, Q, N>
 where
     Q: TileData + 'static,
 {
-    type Item = <Q as TileDataQuery>::Item<'a>;
+    type Item = <Q as TileQueryData>::Item<'a, 's>;
 
     #[allow(clippy::while_let_on_iterator)]
     fn next(&mut self) -> Option<Self::Item> {
@@ -248,11 +248,11 @@ where
                 // SAFETY: Since this is always tied to the lifetime of the reference we are reborrowing query from, we're just
                 // telling the compiler here that we understand this particular item is pointing to something above this iterator.
                 // Even if we drop the iterator, we can't create a new one or mutably borrow the underlying query again, since
-                // this returned itemed will keep the original borrow used to make the iterator alive in the mind of the compiler.
+                // this returned item will keep the original borrow used to make the iterator alive in the mind of the compiler.
                 return unsafe {
                     std::mem::transmute::<
-                        std::option::Option<<Q as TileDataQuery>::Item<'_>>,
-                        std::option::Option<<Q as TileDataQuery>::Item<'_>>,
+                        std::option::Option<<Q as TileQueryData>::Item<'_, 's>>,
+                        std::option::Option<<Q as TileQueryData>::Item<'_, 's>>,
                     >(tile)
                 };
             }

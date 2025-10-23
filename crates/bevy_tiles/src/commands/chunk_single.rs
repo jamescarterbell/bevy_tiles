@@ -1,13 +1,9 @@
 use bevy::{
     ecs::{entity::Entity, world::World},
-    prelude::{Command, DespawnRecursiveExt},
+    prelude::Command,
 };
 
-use crate::{
-    chunks::ChunkCoord,
-    commands::get_chunk,
-    maps::{TileDims, TileMap, TileSpacing},
-};
+use crate::{chunks::ChunkCoord, commands::get_chunk, maps::TileMap};
 
 use super::{get_or_spawn_chunk, TempRemove};
 
@@ -38,7 +34,7 @@ impl<const N: usize> Command for DespawnChunk<N> {
         };
 
         if let Some(chunk) = get_chunk::<N>(&mut map, self.chunk_c) {
-            chunk.try_despawn_recursive();
+            chunk.despawn();
         }
         map.get_chunks_mut().remove(&ChunkCoord(self.chunk_c));
     }

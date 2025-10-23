@@ -2,7 +2,7 @@ use bevy::{
     ecs::{
         entity::Entity,
         prelude::With,
-        query::{QueryData, QueryFilter, WorldQuery},
+        query::{QueryData, QueryFilter},
         system::SystemParam,
     },
     prelude::Query,
@@ -39,7 +39,7 @@ where
         let map = self.map_q.get(map_id).ok()?;
 
         Some(ChunkQuery {
-            chunk_q: self.chunk_q.to_readonly(),
+            chunk_q: self.chunk_q.as_readonly(),
             map,
         })
     }
@@ -58,7 +58,7 @@ where
 /// Used to query chunks from a tile map.
 /// This query also implicitly queries maps
 /// in order to properly resolve chunks.
-pub struct ChunkQuery<'a, 'w, 's, Q, F = (), const N: usize = 2>
+pub struct ChunkQuery<'a, 'w: 's, 's, Q, F = (), const N: usize = 2>
 where
     Q: QueryData + 'static,
     F: QueryFilter + 'static,
@@ -68,15 +68,15 @@ where
     pub map: &'a TileMap<N>,
 }
 
-impl<'a, 'w, 's, Q, F, const N: usize> ChunkQuery<'a, 'w, 's, Q, F, N>
+impl<'a, 'w: 's, 's, Q, F, const N: usize> ChunkQuery<'a, 'w, 's, Q, F, N>
 where
     Q: QueryData + 'static,
     F: QueryFilter + 'static,
 {
     /// Get the readonly variant of this query.
-    pub fn to_readonly(&self) -> ChunkQuery<'_, '_, 's, Q::ReadOnly, F, N> {
+    pub fn as_readonly(&self) -> ChunkQuery<'_, '_, 's, Q::ReadOnly, F, N> {
         ChunkQuery {
-            chunk_q: self.chunk_q.to_readonly(),
+            chunk_q: self.chunk_q.as_readonly(),
             map: self.map,
         }
     }
@@ -96,7 +96,7 @@ where
     pub fn get_at(
         &self,
         chunk_c: impl Into<[i32; N]>,
-    ) -> Option<<<Q as QueryData>::ReadOnly as WorldQuery>::Item<'_>> {
+    ) -> Option<<<Q as QueryData>::ReadOnly as QueryData>::Item<'_, 's>> {
         let chunk_c = chunk_c.into();
         let chunk_id = self.map.get_from_chunk(ChunkCoord(chunk_c))?;
 
@@ -112,7 +112,7 @@ where
     pub unsafe fn get_at_unchecked(
         &self,
         chunk_c: impl Into<[i32; N]>,
-    ) -> Option<<Q as WorldQuery>::Item<'_>> {
+    ) -> Option<<Q as QueryData>::Item<'_, 's>> {
         let chunk_c = chunk_c.into();
         let chunk_id = self.map.get_from_chunk(ChunkCoord(chunk_c))?;
 
@@ -132,7 +132,7 @@ where
         let corner_1 = corner_1.into();
         let corner_2 = corner_2.into();
         // SAFETY: This thing is uses manual mem management
-        unsafe { ChunkQueryIter::from_owned(self.to_readonly(), corner_1, corner_2) }
+        unsafe { ChunkQueryIter::from_owned(self.as_readonly(), corner_1, corner_2) }
     }
 
     /// Get's the query item for the given tile.
@@ -142,7 +142,7 @@ where
     pub fn get_at_mut(
         &mut self,
         chunk_c: impl Into<[i32; N]>,
-    ) -> Option<<Q as WorldQuery>::Item<'_>> {
+    ) -> Option<<Q as QueryData>::Item<'_, 's>> {
         let chunk_c = chunk_c.into();
         let chunk_id = self.map.get_from_chunk(ChunkCoord(chunk_c))?;
 
@@ -200,7 +200,7 @@ where
     Q: QueryData + 'static,
     F: QueryFilter + 'static,
 {
-    type Item = Q::Item<'a>;
+    type Item = Q::Item<'a, 's>;
 
     #[allow(clippy::while_let_on_iterator)]
     fn next(&mut self) -> Option<Self::Item> {
@@ -214,8 +214,8 @@ where
                 // this returned itemed will keep the original borrow used to make the iterator alive in the mind of the compiler.
                 return unsafe {
                     std::mem::transmute::<
-                        std::option::Option<<Q as WorldQuery>::Item<'_>>,
-                        std::option::Option<<Q as WorldQuery>::Item<'_>>,
+                        std::option::Option<<Q as QueryData>::Item<'_, 's>>,
+                        std::option::Option<<Q as QueryData>::Item<'_, 's>>,
                     >(tile)
                 };
             }

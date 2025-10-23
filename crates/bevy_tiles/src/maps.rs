@@ -1,7 +1,7 @@
 use bevy::{
     ecs::{component::Component, entity::Entity},
+    platform::collections::HashMap,
     prelude::{Deref, DerefMut},
-    utils::HashMap,
 };
 
 use crate::{chunks::ChunkCoord, coords::calculate_chunk_coordinate};

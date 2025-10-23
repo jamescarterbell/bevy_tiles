@@ -12,7 +12,7 @@ use bevy_tiles::{
         calculate_chunk_coordinate, calculate_tile_coordinate, calculate_tile_index,
         max_tile_index, CoordIterator,
     },
-    queries::TileDataQuery,
+    queries::TileQueryData,
 };
 
 use crate::{entity_tile::InChunk, EntityTile};
@@ -27,7 +27,7 @@ where
     F: QueryFilter + 'static,
 {
     tile_q: Query<'w, 's, Q, (F, With<InChunk>)>,
-    chunk_q: ChunkMapQuery<'w, 's, <EntityTile as TileDataQuery>::Source, With<InMap>, N>,
+    chunk_q: ChunkMapQuery<'w, 's, <EntityTile as TileQueryData>::Source, With<InMap>, N>,
 }
 
 impl<'w, 's, Q, F, const N: usize> TileEntityMapQuery<'w, 's, Q, F, N>
@@ -66,7 +66,7 @@ where
     F: QueryFilter + 'static,
 {
     tile_q: Query<'w, 's, Q, (F, With<InChunk>)>,
-    chunk_q: ChunkQuery<'a, 'w, 's, <EntityTile as TileDataQuery>::Source, With<InMap>, N>,
+    chunk_q: ChunkQuery<'a, 'w, 's, <EntityTile as TileQueryData>::Source, With<InMap>, N>,
 }
 
 impl<'a, 'w, 's, Q, F, const N: usize> TileEntityQuery<'a, 'w, 's, Q, F, N>
@@ -78,7 +78,7 @@ where
     pub fn to_readonly(&self) -> TileEntityQuery<'_, '_, 's, Q::ReadOnly, F, N> {
         TileEntityQuery {
             tile_q: self.tile_q.to_readonly(),
-            chunk_q: self.chunk_q.to_readonly(),
+            chunk_q: self.chunk_q.as_readonly(),
         }
     }
 

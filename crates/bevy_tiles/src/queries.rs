@@ -1,34 +1,29 @@
-use std::any::TypeId;
-
-use bevy::{
-    ecs::query::{QueryData, WorldQuery},
-    prelude::{Bundle, Component, Entity, EntityWorldMut},
-};
+use bevy::{ecs::query::QueryData, prelude::EntityWorldMut};
 
 use crate::{
-    chunks::{ChunkData, ChunkTypes},
+    chunks::ChunkData,
     maps::{TileDims, TileSpacing},
 };
 
 /// Marks a data type as.
-pub trait TileDataQuery {
+pub trait TileQueryData {
     /// The item returned from a tile query.
-    type Item<'a>;
+    type Item<'w, 's>;
     /// The component on the chunk tile data is queried from.
     type Source: QueryData;
 
     /// Get tile data from a chunk.
-    fn get(
-        source: <<Self as TileDataQuery>::Source as WorldQuery>::Item<'_>,
+    fn get<'w, 's, 'i: 's>(
+        source: <<Self as TileQueryData>::Source as QueryData>::Item<'w, 's>,
         index: usize,
-    ) -> Option<Self::Item<'_>>;
+    ) -> Option<Self::Item<'w, 'i>>;
 }
 
 /// Mark type as usable in tiles.
-pub trait TileData: TileDataQuery + Send + Sync {
+pub trait TileData: TileQueryData + Send + Sync {
     /// The readonly variant of the tile data.
     type ReadOnly: ReadOnlyTileData
-        + TileDataQuery<Source = <<Self as TileDataQuery>::Source as QueryData>::ReadOnly>;
+        + TileQueryData<Source = <<Self as TileQueryData>::Source as QueryData>::ReadOnly>;
 }
 
 /// Mark type as usable in readonly tile queries.
@@ -43,32 +38,32 @@ impl<T: Send + Sync + 'static> TileData for &T {
 /// Safety: &T is readonly.
 unsafe impl<T: Send + Sync + 'static> ReadOnlyTileData for &T {}
 
-impl<T: Send + Sync + 'static> TileDataQuery for &T {
-    type Item<'a> = &'a T;
+impl<T: Send + Sync + 'static> TileQueryData for &T {
+    type Item<'w, 's> = &'w T;
 
     type Source = &'static ChunkData<T>;
 
-    fn get<'a>(
-        source: <<Self as TileDataQuery>::Source as WorldQuery>::Item<'_>,
+    fn get<'w, 's, 'i: 's>(
+        source: <<Self as TileQueryData>::Source as QueryData>::Item<'w, 's>,
         index: usize,
-    ) -> Option<Self::Item<'_>> {
+    ) -> Option<Self::Item<'w, 'i>> {
         source.get(index)
     }
 }
 
-impl<'w, T: Send + Sync + 'static> TileData for &'w mut T {
-    type ReadOnly = &'w T;
+impl<T: Send + Sync + 'static> TileData for &mut T {
+    type ReadOnly = &'static T;
 }
 
-impl<'w, T: Send + Sync + 'static> TileDataQuery for &'w mut T {
-    type Item<'a> = &'a mut T;
+impl<T: Send + Sync + 'static> TileQueryData for &mut T {
+    type Item<'w, 's> = &'w mut T;
 
     type Source = &'static mut ChunkData<T>;
 
-    fn get<'a>(
-        source: <<Self as TileDataQuery>::Source as WorldQuery>::Item<'_>,
+    fn get<'w, 's, 'i: 's>(
+        source: <<Self as TileQueryData>::Source as QueryData>::Item<'w, 's>,
         index: usize,
-    ) -> Option<Self::Item<'_>> {
+    ) -> Option<Self::Item<'w, 'i>> {
         source.into_inner().get_mut(index)
     }
 }
