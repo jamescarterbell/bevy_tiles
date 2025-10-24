@@ -68,6 +68,9 @@ impl<'a, const N: usize> TileMapCommandsECSExt<N> for TileMapCommands<'a, N> {
     fn move_tile(&mut self, old_c: impl Into<[i32; N]>, new_c: impl Into<[i32; N]>) -> &mut Self {
         let old_c = old_c.into();
         let new_c = new_c.into();
+        if old_c == new_c {
+            return self;
+        }
         let map_id = self.id();
         self.commands().queue(MoveTile {
             map_id,

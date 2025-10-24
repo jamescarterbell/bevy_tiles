@@ -25,6 +25,7 @@ pub struct InMap(pub(crate) Entity);
 /// to put it on your own entities, but this is only accurate
 /// when mutated by the plugin.
 #[derive(Component, Deref, Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[component(immutable)]
 pub struct ChunkCoord<const N: usize>(pub(crate) [i32; N]);
 
 impl From<IVec2> for ChunkCoord<2> {

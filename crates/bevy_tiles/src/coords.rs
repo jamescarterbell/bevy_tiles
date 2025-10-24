@@ -23,9 +23,10 @@ pub fn calculate_chunk_relative_tile_coordinate_from_index<const N: usize>(
 ) -> [usize; N] {
     let mut coord = [0; N];
     for i in (1..=(N - 1)).rev() {
-        let res = tile_i / chunk_size;
+        let dim_size = chunk_size.pow(i as u32);
+        let res = tile_i / dim_size;
         coord[i] = res;
-        tile_i -= res * chunk_size;
+        tile_i -= res * dim_size;
     }
     coord[0] = tile_i;
     coord
