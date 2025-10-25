@@ -413,23 +413,8 @@ pub fn insert_tile<B: TileComponent, const N: usize>(
     tile_c: [i32; N],
     tile_bundle: B,
 ) -> Option<B> {
+    let map_id = map.source;
     let chunk_size = map.get_chunk_size();
-
-    let (use_transforms, tile_dims, tile_spacing) = map
-        .world
-        .query::<(
-            Option<&UseTransforms>,
-            Option<&TileDims<N>>,
-            Option<&TileSpacing<N>>,
-        )>()
-        .get(map.world, map.source)
-        .unwrap();
-
-    let (use_transforms, tile_dims, tile_spacing) = (
-        use_transforms.cloned(),
-        tile_dims.cloned(),
-        tile_spacing.cloned(),
-    );
 
     // Take the chunk out and get the id to reinsert it
     let chunk_c = calculate_chunk_coordinate(tile_c, chunk_size);
@@ -439,12 +424,9 @@ pub fn insert_tile<B: TileComponent, const N: usize>(
     let tile_i = calculate_tile_index(tile_c, chunk_size);
 
     tile_bundle.insert_tile_into_chunk::<N>(
+        map_id,
         chunk,
-        chunk_c,
         chunk_size,
-        use_transforms.is_some(),
-        tile_dims,
-        tile_spacing,
         tile_c,
         tile_i,
     )
@@ -459,6 +441,7 @@ pub fn insert_tile_batch<B: TileComponent, const N: usize>(
     tile_cs: impl IntoIterator<Item = [i32; N]>,
     tile_bundles: impl IntoIterator<Item = B>,
 ) -> impl Iterator<Item = B> {
+    let map_id = map.source;
     let chunk_size = map.get_chunk_size();
     let mut tiles = tile_bundles.into_iter();
 
@@ -475,32 +458,13 @@ pub fn insert_tile_batch<B: TileComponent, const N: usize>(
 
     let mut replaced_vals = Vec::new();
 
-    let (use_transforms, tile_dims, tile_spacing) = map
-        .world
-        .query::<(
-            Option<&UseTransforms>,
-            Option<&TileDims<N>>,
-            Option<&TileSpacing<N>>,
-        )>()
-        .get(map.world, map.source)
-        .unwrap();
-
-    let (use_transforms, tile_dims, tile_spacing) = (
-        use_transforms.cloned(),
-        tile_dims.cloned(),
-        tile_spacing.cloned(),
-    );
-
     for (chunk_c, tile_is) in chunk_cs {
         let chunk = get_or_spawn_chunk::<N>(map, chunk_c);
         for replaced in B::insert_tile_batch_into_chunk::<N>(
             &mut tiles,
+            map_id,
             chunk,
-            chunk_c,
             chunk_size,
-            use_transforms.is_some(),
-            tile_dims,
-            tile_spacing,
             tile_is.into_iter(),
         ) {
             replaced_vals.push(replaced);

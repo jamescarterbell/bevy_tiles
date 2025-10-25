@@ -1,8 +1,7 @@
-use bevy::{ecs::query::QueryData, prelude::EntityWorldMut};
+use bevy::{ecs::{entity::Entity, query::QueryData}, prelude::EntityWorldMut};
 
 use crate::{
     chunks::ChunkData,
-    maps::{TileDims, TileSpacing},
 };
 
 /// Marks a data type as.
@@ -75,12 +74,9 @@ pub unsafe trait TileComponent: Sized + Send + Sync + 'static {
     /// Inserts a bundle and returns all the replaced values.
     fn insert_tile_into_chunk<const N: usize>(
         self,
+        map_id: Entity,
         chunk: EntityWorldMut<'_>,
-        chunk_c: [i32; N],
         chunk_size: usize,
-        use_transforms: bool,
-        tile_dims: Option<TileDims<N>>,
-        tile_spacing: Option<TileSpacing<N>>,
         tile_c: [i32; N],
         tile_i: usize,
     ) -> Option<Self>;
@@ -88,13 +84,10 @@ pub unsafe trait TileComponent: Sized + Send + Sync + 'static {
     /// Inserts a bundle and returns all the replaced values.
     fn insert_tile_batch_into_chunk<const N: usize>(
         tiles: impl Iterator<Item = Self>,
+        map_id: Entity,
         chunk: EntityWorldMut<'_>,
-        chunk_c: [i32; N],
         chunk_size: usize,
-        use_transforms: bool,
-        tile_dims: Option<TileDims<N>>,
-        tile_spacing: Option<TileSpacing<N>>,
-        tile_is: impl Iterator<Item = ([i32; N], usize)>,
+        tile_info: impl Iterator<Item = ([i32; N], usize)>,
     ) -> impl Iterator<Item = Self>;
 
     /// Try to remove a bundle.

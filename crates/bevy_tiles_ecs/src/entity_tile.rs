@@ -1,10 +1,7 @@
 use std::any::TypeId;
 
 use bevy::{
-    ecs::{
-        hierarchy::ChildOf,
-        query::{QueryData, WorldQuery},
-    },
+    ecs::{hierarchy::ChildOf, query::QueryData},
     math::{IVec2, IVec3, Vec2, Vec3},
     prelude::{
         Component, Deref, DerefMut, Entity, EntityWorldMut, InheritedVisibility, Transform,
@@ -13,11 +10,8 @@ use bevy::{
 };
 use bevy_tiles::{
     chunks::{ChunkData, ChunkTypes},
-    coords::{
-        calculate_chunk_relative_tile_coordinate,
-        calculate_chunk_relative_tile_coordinate_from_index,
-    },
-    maps::{TileDims, TileSpacing},
+    coords::calculate_chunk_relative_tile_coordinate_from_index,
+    maps::{TileDims, TileSpacing, UseTransforms},
     queries::{ReadOnlyTileData, TileComponent, TileData, TileQueryData},
 };
 
@@ -50,16 +44,13 @@ impl TileQueryData for EntityTile {
 unsafe impl TileComponent for EntityTile {
     fn insert_tile_into_chunk<const N: usize>(
         self,
+        map_id: Entity,
         mut chunk: EntityWorldMut<'_>,
-        chunk_c: [i32; N],
         chunk_size: usize,
-        use_transforms: bool,
-        tile_dims: Option<TileDims<N>>,
-        tile_spacing: Option<TileSpacing<N>>,
         tile_c: [i32; N],
         tile_i: usize,
     ) -> Option<Self> {
-        let location = match chunk.get_mut::<ChunkData<Self>>() {
+        let res = match chunk.get_mut::<ChunkData<Self>>() {
             Some(data) => data,
             None => {
                 chunk
@@ -72,16 +63,29 @@ unsafe impl TileComponent for EntityTile {
                 ));
                 chunk.get_mut::<ChunkData<Self>>().unwrap()
             }
-        };
-        let mut binding = location;
-        let res = binding.insert(tile_i, self);
+        }
+        .insert(tile_i, self);
 
         let chunk_id = chunk.id();
 
-        let tile_t =
-            calc_tile_transform(use_transforms, tile_dims, tile_spacing, tile_i, chunk_size);
-
         chunk.world_scope(|world| {
+            let (use_transforms, tile_dims, tile_spacing) = world
+                .query::<(
+                    Option<&UseTransforms>,
+                    Option<&TileDims<N>>,
+                    Option<&TileSpacing<N>>,
+                )>()
+                .get(world, map_id)
+                .unwrap();
+
+            let tile_t = calc_tile_transform(
+                use_transforms.is_some(),
+                tile_dims,
+                tile_spacing,
+                tile_i,
+                chunk_size,
+            );
+
             world.get_entity_mut(*self).unwrap().insert((
                 tile_t.unwrap_or_default(),
                 Visibility::default(),
@@ -93,14 +97,13 @@ unsafe impl TileComponent for EntityTile {
             ));
         });
 
-        res
+        return res;
     }
 
     fn take_tile_from_chunk(chunk: &mut EntityWorldMut<'_>, tile_i: usize) -> Option<Self> {
-        let location = chunk.get_mut::<ChunkData<Self>>();
-        let mut binding = location?;
-        let removed = binding.take(tile_i);
-        if binding.get_count() == 0 {
+        let mut location = chunk.get_mut::<ChunkData<Self>>()?;
+        let removed = location.take(tile_i);
+        if location.get_count() == 0 {
             chunk
                 .get_mut::<ChunkTypes>()
                 .unwrap()
@@ -118,13 +121,10 @@ unsafe impl TileComponent for EntityTile {
 
     fn insert_tile_batch_into_chunk<const N: usize>(
         tiles: impl Iterator<Item = Self>,
+        map_id: Entity,
         mut chunk: EntityWorldMut<'_>,
-        chunk_c: [i32; N],
         chunk_size: usize,
-        use_transforms: bool,
-        tile_dims: Option<TileDims<N>>,
-        tile_spacing: Option<TileSpacing<N>>,
-        tile_is: impl Iterator<Item = ([i32; N], usize)>,
+        tile_info: impl Iterator<Item = ([i32; N], usize)>,
     ) -> impl Iterator<Item = Self> {
         let chunk_id = chunk.id();
         let mut chunk_data = match chunk.take::<ChunkData<Self>>() {
@@ -139,14 +139,35 @@ unsafe impl TileComponent for EntityTile {
             }
         };
 
+        let (use_transforms, tile_dims, tile_spacing) = chunk.world_scope(|world| {
+            let (use_transforms, tile_dims, tile_spacing) = world
+                .query::<(
+                    Option<&UseTransforms>,
+                    Option<&TileDims<N>>,
+                    Option<&TileSpacing<N>>,
+                )>()
+                .get(world, map_id)
+                .unwrap();
+            (
+                use_transforms.is_some(),
+                tile_dims.cloned(),
+                tile_spacing.cloned(),
+            )
+        });
+
         let mut removed = Vec::new();
-        for ((tile_c, tile_i), tile) in tile_is.zip(tiles) {
+        for ((tile_c, tile_i), tile) in tile_info.zip(tiles) {
             let res = chunk_data.insert(tile_i, tile);
 
-            let tile_t =
-                calc_tile_transform(use_transforms, tile_dims, tile_spacing, tile_i, chunk_size);
-
             chunk.world_scope(|world| {
+                let tile_t = calc_tile_transform(
+                    use_transforms,
+                    tile_dims.as_ref(),
+                    tile_spacing.as_ref(),
+                    tile_i,
+                    chunk_size,
+                );
+
                 world.get_entity_mut(*tile).unwrap().insert((
                     tile_t.unwrap_or_default(),
                     Visibility::default(),
@@ -171,8 +192,8 @@ unsafe impl TileComponent for EntityTile {
 #[inline]
 fn calc_tile_transform<const N: usize>(
     use_transforms: bool,
-    tile_dims: Option<TileDims<N>>,
-    tile_spacing: Option<TileSpacing<N>>,
+    tile_dims: Option<&TileDims<N>>,
+    tile_spacing: Option<&TileSpacing<N>>,
     tile_i: usize,
     chunk_size: usize,
 ) -> Option<Transform> {
@@ -215,8 +236,8 @@ fn calc_tile_transform<const N: usize>(
 fn calc_tile_trans_dim<const N: usize>(
     dim: usize,
     tile_c: [usize; N],
-    dims: TileDims<N>,
-    spacing: Option<TileSpacing<N>>,
+    dims: &TileDims<N>,
+    spacing: Option<&TileSpacing<N>>,
 ) -> f32 {
     dims.0[dim] * (tile_c[dim] as f32)
         + spacing
