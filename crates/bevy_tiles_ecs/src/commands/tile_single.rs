@@ -18,9 +18,9 @@ pub struct SpawnTile<const N: usize> {
 impl<const N: usize> Command for SpawnTile<N> {
     fn apply(self, world: &mut World) {
         let replaced = {
-            let Some(mut map) = world.temp_remove::<TileMap<N>>(self.map_id) else {
-                panic!("No tilemap found!")
-            };
+            let mut map = world
+                .temp_remove::<TileMap<N>>(self.map_id)
+                .expect("No tilemap found!");
 
             insert_tile::<EntityTile, N>(&mut map, self.tile_c, self.tile_id)
         };
@@ -39,9 +39,9 @@ pub struct DespawnTile<const N: usize> {
 impl<const N: usize> Command for DespawnTile<N> {
     fn apply(self, world: &mut World) {
         if let Some(id) = {
-            let Some(mut map) = world.temp_remove::<TileMap<N>>(self.map_id) else {
-                panic!("No tilemap found!")
-            };
+            let mut map = world
+                .temp_remove::<TileMap<N>>(self.map_id)
+                .expect("No tilemap found!");
 
             take_tile::<EntityTile, N>(&mut map, self.tile_c)
         } {
@@ -62,9 +62,9 @@ impl<const N: usize> Command for SwapTile<N> {
             return;
         }
 
-        let Some(mut map) = world.temp_remove::<TileMap<N>>(self.map_id) else {
-            panic!("No tilemap found!")
-        };
+        let mut map = world
+            .temp_remove::<TileMap<N>>(self.map_id)
+            .expect("No tilemap found!");
 
         let tile_id_0 = take_tile::<EntityTile, N>(&mut map, self.tile_c_0);
 
@@ -95,9 +95,9 @@ pub struct MoveTile<const N: usize> {
 impl<const N: usize> Command for MoveTile<N> {
     fn apply(self, world: &mut World) {
         let replaced = {
-            let Some(mut map) = world.temp_remove::<TileMap<N>>(self.map_id) else {
-                panic!("No tilemap found!")
-            };
+            let mut map = world
+                .temp_remove::<TileMap<N>>(self.map_id)
+                .expect("No tilemap found!");
 
             let Some(id) = take_tile::<EntityTile, N>(&mut map, self.old_c) else {
                 return;

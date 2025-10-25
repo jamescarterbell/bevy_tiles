@@ -14,9 +14,7 @@ pub struct SpawnChunk<const N: usize = 2> {
 
 impl<const N: usize> Command for SpawnChunk<N> {
     fn apply(self, world: &mut World) {
-        let Some(mut map) = world.temp_remove::<TileMap<N>>(self.map_id) else {
-            panic!("No tilemap found!")
-        };
+        let mut map = world.temp_remove::<TileMap<N>>(self.map_id).expect("No tilemap found!");
 
         get_or_spawn_chunk::<N>(&mut map, self.chunk_c);
     }
@@ -29,9 +27,7 @@ pub struct DespawnChunk<const N: usize> {
 
 impl<const N: usize> Command for DespawnChunk<N> {
     fn apply(self, world: &mut World) {
-        let Some(mut map) = world.temp_remove::<TileMap<N>>(self.map_id) else {
-            panic!("No tilemap found!")
-        };
+        let mut map = world.temp_remove::<TileMap<N>>(self.map_id).expect("No tilemap found!");
 
         if let Some(chunk) = get_chunk::<N>(&mut map, self.chunk_c) {
             chunk.despawn();

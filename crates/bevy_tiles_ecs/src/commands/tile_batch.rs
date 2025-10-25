@@ -24,9 +24,9 @@ where
 {
     fn apply(self, world: &mut World) {
         let replaced = {
-            let Some(mut map) = world.temp_remove::<TileMap<N>>(self.map_id) else {
-                panic!("No tilemap found!")
-            };
+            let mut map = world
+                .temp_remove::<TileMap<N>>(self.map_id)
+                .expect("No tilemap found!");
 
             let mut tile_cs = Vec::new();
             for tile in self.tile_cs {
