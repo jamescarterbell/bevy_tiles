@@ -34,6 +34,9 @@ pub mod maps;
 pub mod queries;
 /// Provides tile level utilities.
 pub mod tiles;
+/// Provides impls for [`bevy::sprite_render::TileData`]
+pub mod render;
+
 
 /// Helper aliases for working with 2d grids
 pub mod tiles_2d {
