@@ -1,7 +1,10 @@
 use std::f32::consts::PI;
 
 use bevy::{
-    color::palettes::css::{BLUE, GREEN}, light::CascadeShadowConfigBuilder, prelude::*, DefaultPlugins
+    color::palettes::css::{BLUE, GREEN},
+    light::CascadeShadowConfigBuilder,
+    prelude::*,
+    DefaultPlugins,
 };
 use bevy_tiles::{
     commands::TileCommandExt,

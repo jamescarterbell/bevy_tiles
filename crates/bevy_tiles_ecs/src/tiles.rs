@@ -49,7 +49,10 @@ where
     }
 
     /// Gets the query for a given map.
-    pub fn get_map_mut<'a>(&'a mut self, map_id: Entity) -> Option<TileEntityQuery<'a, 'a, 's, Q, F, N>> {
+    pub fn get_map_mut<'a>(
+        &'a mut self,
+        map_id: Entity,
+    ) -> Option<TileEntityQuery<'a, 'a, 's, Q, F, N>> {
         let chunk_q = self.chunk_q.get_map_mut(map_id)?;
 
         Some(TileEntityQuery {
