@@ -70,14 +70,14 @@ impl<const N: usize> Command for SwapTile<N> {
 
         let tile_id_1 = take_tile::<EntityTile, N>(&mut map, self.tile_c_1);
 
-        let res_0 = tile_id_0.map(|tile_id_0| {
+        let _ = tile_id_0.map(|tile_id_0| {
             (
                 tile_id_0,
                 insert_tile::<EntityTile, N>(&mut map, self.tile_c_1, tile_id_0),
             )
         });
 
-        let res_1 = tile_id_1.map(|tile_id_1| {
+        let _ = tile_id_1.map(|tile_id_1| {
             (
                 tile_id_1,
                 insert_tile::<EntityTile, N>(&mut map, self.tile_c_0, tile_id_1),
