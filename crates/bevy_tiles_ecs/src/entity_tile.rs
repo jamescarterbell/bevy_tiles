@@ -80,7 +80,6 @@ unsafe impl TileComponent for EntityTile {
 
         let tile_t =
             calc_tile_transform(use_transforms, tile_dims, tile_spacing, tile_i, chunk_size);
-        println!("transform: {:?}", tile_t);
 
         chunk.world_scope(|world| {
             world.get_entity_mut(*self).unwrap().insert((
@@ -183,7 +182,6 @@ fn calc_tile_transform<const N: usize>(
     match tile_dims {
         Some(tile_dims) => {
             let tile_c = calculate_chunk_relative_tile_coordinate_from_index(tile_i, chunk_size);
-            println!("tile_c: {:?}", tile_c);
             let translation = match N {
                 1 => Vec3::new(
                     calc_tile_trans_dim(0, tile_c, tile_dims, tile_spacing),

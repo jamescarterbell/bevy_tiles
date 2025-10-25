@@ -30,7 +30,7 @@ where
     chunk_q: ChunkMapQuery<'w, 's, <EntityTile as TileQueryData>::Source, With<InMap>, N>,
 }
 
-impl<'w: 's, 's, Q, F, const N: usize> TileEntityMapQuery<'w, 's, Q, F, N>
+impl<'w, 's, Q, F, const N: usize> TileEntityMapQuery<'w, 's, Q, F, N>
 where
     Q: QueryData + 'static,
     F: QueryFilter + 'static,

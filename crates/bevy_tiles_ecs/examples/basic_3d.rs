@@ -19,7 +19,7 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_plugins(TilesPlugin)
         .add_systems(Startup, spawn)
-        .add_systems(Update, (move_character, print_transform))
+        .add_systems(Update, move_character)
         .run();
 }
 
@@ -132,11 +132,5 @@ fn move_character(
             .tile_map(map_id)
             .unwrap()
             .move_tile(char_c, new_coord);
-    }
-}
-
-fn print_transform(changed: Query<&GlobalTransform, Changed<Transform>>) {
-    for t in changed.iter() {
-        println!("{:?}", t.compute_transform().translation);
     }
 }

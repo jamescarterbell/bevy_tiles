@@ -58,7 +58,7 @@ where
 /// Used to query chunks from a tile map.
 /// This query also implicitly queries maps
 /// in order to properly resolve chunks.
-pub struct ChunkQuery<'a, 'w: 's, 's, Q, F = (), const N: usize = 2>
+pub struct ChunkQuery<'a, 'w, 's, Q, F = (), const N: usize = 2>
 where
     Q: QueryData + 'static,
     F: QueryFilter + 'static,
@@ -68,7 +68,7 @@ where
     pub map: &'a TileMap<N>,
 }
 
-impl<'a, 'w: 's, 's, Q, F, const N: usize> ChunkQuery<'a, 'w, 's, Q, F, N>
+impl<'a, 'w, 's, Q, F, const N: usize> ChunkQuery<'a, 'w, 's, Q, F, N>
 where
     Q: QueryData + 'static,
     F: QueryFilter + 'static,

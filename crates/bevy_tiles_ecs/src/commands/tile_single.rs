@@ -100,7 +100,6 @@ impl<const N: usize> Command for MoveTile<N> {
             };
 
             let Some(id) = take_tile::<EntityTile, N>(&mut map, self.old_c) else {
-                println!("Couldn't find the old tile :(");
                 return;
             };
             insert_tile::<EntityTile, N>(&mut map, self.new_c, id)

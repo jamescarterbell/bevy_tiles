@@ -195,14 +195,12 @@ mod tests {
             for y in make_range_iter(corner_1[1], corner_2[1]) {
                 for x in make_range_iter(corner_1[0], corner_2[0]) {
                     let next = iter.next();
-                    println!("Iter: {:?}", next);
                     assert_eq!(Some([x, y, z]), next);
                 }
             }
         }
 
         let next = iter.next();
-        println!("Fin: {:?}", next);
         assert_eq!(None, next);
     }
 
