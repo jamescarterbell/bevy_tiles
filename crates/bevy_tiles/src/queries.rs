@@ -1,8 +1,9 @@
-use bevy::{ecs::{entity::Entity, query::QueryData}, prelude::EntityWorldMut};
-
-use crate::{
-    chunks::ChunkData,
+use bevy::{
+    ecs::{entity::Entity, query::QueryData},
+    prelude::EntityWorldMut,
 };
+
+use crate::chunks::ChunkData;
 
 /// Marks a data type as.
 pub trait TileQueryData {

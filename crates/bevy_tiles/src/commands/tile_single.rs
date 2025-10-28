@@ -20,7 +20,9 @@ where
 
 impl<B: TileComponent, const N: usize> Command for InsertTile<B, N> {
     fn apply(self, world: &mut World) {
-        let mut map = world.temp_remove::<TileMap<N>>(self.map_id).expect("No tilemap found!");
+        let mut map = world
+            .temp_remove::<TileMap<N>>(self.map_id)
+            .expect("No tilemap found!");
 
         insert_tile::<B, N>(&mut map, self.tile_c, self.bundle);
     }
@@ -40,7 +42,9 @@ where
     B: TileComponent,
 {
     fn apply(self, world: &mut World) {
-        let mut map = world.temp_remove::<TileMap<N>>(self.map_id).expect("No tilemap found!");
+        let mut map = world
+            .temp_remove::<TileMap<N>>(self.map_id)
+            .expect("No tilemap found!");
 
         take_tile::<B, N>(&mut map, self.tile_c);
     }

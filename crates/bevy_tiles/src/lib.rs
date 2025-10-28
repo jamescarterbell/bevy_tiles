@@ -32,11 +32,11 @@ pub mod coords;
 pub mod maps;
 /// Provides traits for accessing tile data.
 pub mod queries;
+/// Provides impls for [`bevy::sprite_render::TileData`]
+#[cfg(feature = "render")]
+pub mod render;
 /// Provides tile level utilities.
 pub mod tiles;
-/// Provides impls for [`bevy::sprite_render::TileData`]
-pub mod render;
-
 
 /// Helper aliases for working with 2d grids
 pub mod tiles_2d {

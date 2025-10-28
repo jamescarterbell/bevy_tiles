@@ -35,7 +35,10 @@ where
     F: QueryFilter + 'static,
 {
     /// Gets the query for a given map.
-    pub fn get_map<'a>(&'a self, map_id: Entity) -> Option<ChunkQuery<'a, 'a, 's, Q::ReadOnly, F, N>> {
+    pub fn get_map<'a>(
+        &'a self,
+        map_id: Entity,
+    ) -> Option<ChunkQuery<'a, 'a, 's, Q::ReadOnly, F, N>> {
         let map = self.map_q.get(map_id).ok()?;
 
         Some(ChunkQuery {
@@ -45,7 +48,10 @@ where
     }
 
     /// Gets the query for a given map.
-    pub fn get_map_mut<'a>(&'a mut self, map_id: Entity) -> Option<ChunkQuery<'a, 'a, 's, Q, F, N>> {
+    pub fn get_map_mut<'a>(
+        &'a mut self,
+        map_id: Entity,
+    ) -> Option<ChunkQuery<'a, 'a, 's, Q, F, N>> {
         let map = self.map_q.get(map_id).ok()?;
 
         Some(ChunkQuery {

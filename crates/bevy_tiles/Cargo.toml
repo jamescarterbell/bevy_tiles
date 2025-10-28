@@ -8,6 +8,9 @@ repository.workspace = true
 homepage.workspace = true
 description = "Bevy library for working with entities in grids."
 
+[features]
+render = ["bevy/bevy_sprite_render"]
+
 [profile.dev]
 opt-level = 1
 

@@ -7,13 +7,14 @@ use crate::{
     queries::TileComponent,
 };
 use bevy::{
-    camera::visibility::{InheritedVisibility, Visibility}, ecs::{
+    camera::visibility::{InheritedVisibility, Visibility},
+    ecs::{
         component::Component, entity::EntityDoesNotExistError, hierarchy::ChildOf,
         system::EntityCommands,
-    }, math::Vec3, platform::collections::{hash_map::Entry, HashMap}, prelude::{
-        Bundle, Commands, Deref, DerefMut, Entity, EntityWorldMut, Transform,
-        World,
-    }
+    },
+    math::Vec3,
+    platform::collections::{hash_map::Entry, HashMap},
+    prelude::{Bundle, Commands, Deref, DerefMut, Entity, EntityWorldMut, Transform, World},
 };
 
 // mod chunk_batch;
@@ -423,13 +424,7 @@ pub fn insert_tile<B: TileComponent, const N: usize>(
     // Insert the tile
     let tile_i = calculate_tile_index(tile_c, chunk_size);
 
-    tile_bundle.insert_tile_into_chunk::<N>(
-        map_id,
-        chunk,
-        chunk_size,
-        tile_c,
-        tile_i,
-    )
+    tile_bundle.insert_tile_into_chunk::<N>(map_id, chunk, chunk_size, tile_c, tile_i)
 }
 
 /// Inserts a batch of tiles into the given map.

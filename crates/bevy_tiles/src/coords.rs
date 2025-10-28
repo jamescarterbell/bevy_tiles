@@ -51,9 +51,11 @@ pub fn calculate_chunk_relative_tile_coordinate<const N: usize>(
 #[inline]
 pub fn calculate_tile_index<const N: usize>(tile_c: [i32; N], chunk_size: usize) -> usize {
     let mut index = 0;
+    let mut mult = 1;
     let relative_tile_c = calculate_chunk_relative_tile_coordinate(tile_c, chunk_size);
-    for (i, c) in relative_tile_c.iter().enumerate() {
-        index += (*c as usize) * chunk_size.pow(i as u32);
+    for c in relative_tile_c.iter() {
+        index += (*c as usize) * mult;
+        mult *= chunk_size;
     }
     index
 }
