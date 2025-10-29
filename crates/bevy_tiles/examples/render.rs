@@ -3,18 +3,20 @@ use bevy::{
     prelude::*,
     sprite_render::{TileData, TilemapChunk, TilemapChunkTileData},
 };
-use bevy_tiles::{commands::TileCommandExt, maps::{TileDims, UseTransforms}, render::TilemapRenderingInfo};
-use rand::{Rng, SeedableRng};
+use bevy_tiles::{
+    commands::TileCommandExt,
+    maps::{TileDims, TileMap, UseTransforms},
+    render::TilemapRenderingInfo,
+    tiles_2d::TileMapQuery,
+};
+use rand::{Rng, RngCore, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
         .add_systems(Startup, setup)
-        .add_systems(
-            Update,
-            (update_tileset_image, update_tilemap),
-        )
+        .add_systems(Update, (update_tileset_image, update_tilemap))
         .run();
 }
 
@@ -29,7 +31,7 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
     // This isn't strictly required in practical use unless you need your app to be deterministic.
     let mut rng = ChaCha8Rng::seed_from_u64(42);
 
-    let chunk_size = UVec2::splat(64);
+    let chunk_size = UVec2::splat(16);
 
     commands.spawn(Camera2d);
     let mut tile_commands = commands.spawn_map(32);
@@ -40,92 +42,54 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
             tile_display_size: UVec2 { x: 16, y: 16 },
             tileset: assets.load("tileset.png"),
             alpha_mode: bevy::sprite_render::AlphaMode2d::Blend,
-        }
+        },
     ));
 
     let size = 100;
 
-    for i in -64..64 {
-        tile_commands.insert_tile(IVec2::new(i, i), TileData {tileset_index: 0, ..Default::default()});
-    }
-    for i in -64..64 {
-        tile_commands.insert_tile(IVec2::new(0, i), TileData {tileset_index: 0, ..Default::default()});
+    for x in -32..32 {
+        for y in -32..32 {
+            tile_commands.insert_tile(
+                IVec2::new(x, y),
+                TileData {
+                    tileset_index: 0,
+                    ..Default::default()
+                },
+            );
+        }
     }
 
     commands.insert_resource(SeededRng(rng));
 }
-
-// #[derive(Component)]
-// struct MovePlayer;
-
-// fn spawn_fake_player(
-//     mut commands: Commands,
-//     mut meshes: ResMut<Assets<Mesh>>,
-//     mut materials: ResMut<Assets<ColorMaterial>>,
-//     chunk: Single<&TilemapChunk>,
-// ) {
-//     let mut transform = chunk.calculate_tile_transform(UVec2::new(0, 0));
-//     transform.translation.z = 1.;
-
-//     commands.spawn((
-//         Mesh2d(meshes.add(Rectangle::new(8., 8.))),
-//         MeshMaterial2d(materials.add(Color::from(RED_400))),
-//         transform,
-//         MovePlayer,
-//     ));
-
-//     let mut transform = chunk.calculate_tile_transform(UVec2::new(5, 6));
-//     transform.translation.z = 1.;
-
-//     // second "player" to visually test a non-zero position
-//     commands.spawn((
-//         Mesh2d(meshes.add(Rectangle::new(8., 8.))),
-//         MeshMaterial2d(materials.add(Color::from(RED_400))),
-//         transform,
-//     ));
-// }
-
-// fn move_player(
-//     mut player: Single<&mut Transform, With<MovePlayer>>,
-//     time: Res<Time>,
-//     chunk: Single<&TilemapChunk>,
-// ) {
-//     let t = (ops::sin(time.elapsed_secs()) + 1.) / 2.;
-
-//     let origin = chunk
-//         .calculate_tile_transform(UVec2::new(0, 0))
-//         .translation
-//         .x;
-//     let destination = chunk
-//         .calculate_tile_transform(UVec2::new(63, 0))
-//         .translation
-//         .x;
-
-//     player.translation.x = origin.lerp(destination, t);
-// }
 
 fn update_tileset_image(
     chunk_query: Query<&TilemapRenderingInfo>,
     mut events: MessageReader<AssetEvent<Image>>,
     mut images: ResMut<Assets<Image>>,
 ) {
-    if let Ok(chunk) = chunk_query.single(){
+    if let Ok(chunk) = chunk_query.single() {
         for event in events.read() {
             if event.is_loaded_with_dependencies(chunk.tileset.id()) {
                 let image = images.get_mut(&chunk.tileset).unwrap();
-                image.reinterpret_stacked_2d_as_array(2);
+                image.reinterpret_stacked_2d_as_array(4);
             }
         }
     }
 }
 
 fn update_tilemap(
-    mut query: Query<(&TilemapChunkTileData, &Transform)>,
+    map: Single<Entity, With<TileMap>>,
+    mut tile_query: TileMapQuery<(&mut TileData)>,
     mut rng: ResMut<SeededRng>,
 ) {
-    for (tile_data, transform) in query.iter_mut() {
-        //println!("{:?}", transform);
-    }
+    let x = (rng.0.next_u32() % 64) as i32 - 32;
+    let y = (rng.0.next_u32() % 64) as i32 - 32;
+
+    let map = *map;
+    let mut map = tile_query.get_map_mut(map).unwrap();
+    let data = map.get_at_mut([x, y]).unwrap();
+
+    data.tileset_index = (data.tileset_index + 1) % 4
 }
 
 // // find the data for an arbitrary tile in the chunk and log its data

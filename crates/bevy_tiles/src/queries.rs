@@ -31,42 +31,42 @@ pub trait TileData: TileQueryData + Send + Sync {
 /// Only safe to impl on readonly types.
 pub unsafe trait ReadOnlyTileData: TileData<ReadOnly = Self> {}
 
-impl<T: Send + Sync + 'static> TileData for &T {
-    type ReadOnly = Self;
-}
+// impl<T: Send + Sync + 'static> TileData for &T {
+//     type ReadOnly = Self;
+// }
 
-/// Safety: &T is readonly.
-unsafe impl<T: Send + Sync + 'static> ReadOnlyTileData for &T {}
+// /// Safety: &T is readonly.
+// unsafe impl<T: Send + Sync + 'static> ReadOnlyTileData for &T {}
 
-impl<T: Send + Sync + 'static> TileQueryData for &T {
-    type Item<'w, 's> = &'w T;
+// impl<T: Send + Sync + 'static> TileQueryData for &T {
+//     type Item<'w, 's> = &'w T;
 
-    type Source = &'static ChunkData<T>;
+//     type Source = &'static ChunkData<T>;
 
-    fn get<'w, 's, 'i: 's>(
-        source: <<Self as TileQueryData>::Source as QueryData>::Item<'w, 's>,
-        index: usize,
-    ) -> Option<Self::Item<'w, 'i>> {
-        source.get(index)
-    }
-}
+//     fn get<'w, 's, 'i: 's>(
+//         source: <<Self as TileQueryData>::Source as QueryData>::Item<'w, 's>,
+//         index: usize,
+//     ) -> Option<Self::Item<'w, 'i>> {
+//         source.get(index)
+//     }
+// }
 
-impl<T: Send + Sync + 'static> TileData for &mut T {
-    type ReadOnly = &'static T;
-}
+// impl<T: Send + Sync + 'static> TileData for &mut T {
+//     type ReadOnly = &'static T;
+// }
 
-impl<T: Send + Sync + 'static> TileQueryData for &mut T {
-    type Item<'w, 's> = &'w mut T;
+// impl<T: Send + Sync + 'static> TileQueryData for &mut T {
+//     type Item<'w, 's> = &'w mut T;
 
-    type Source = &'static mut ChunkData<T>;
+//     type Source = &'static mut ChunkData<T>;
 
-    fn get<'w, 's, 'i: 's>(
-        source: <<Self as TileQueryData>::Source as QueryData>::Item<'w, 's>,
-        index: usize,
-    ) -> Option<Self::Item<'w, 'i>> {
-        source.into_inner().get_mut(index)
-    }
-}
+//     fn get<'w, 's, 'i: 's>(
+//         source: <<Self as TileQueryData>::Source as QueryData>::Item<'w, 's>,
+//         index: usize,
+//     ) -> Option<Self::Item<'w, 'i>> {
+//         source.into_inner().get_mut(index)
+//     }
+// }
 
 /// The tiled version of a component bundle.
 /// # Safety

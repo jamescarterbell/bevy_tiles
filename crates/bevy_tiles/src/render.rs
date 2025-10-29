@@ -2,13 +2,16 @@ use std::{any::TypeId, iter::repeat_n};
 
 use bevy::{
     asset::Handle,
-    ecs::{component::Component, entity::Entity, world::EntityWorldMut},
+    ecs::{component::Component, entity::Entity, query::QueryData, world::EntityWorldMut},
     image::Image,
     math::UVec2,
     sprite_render::{AlphaMode2d, TileData, TilemapChunk, TilemapChunkTileData},
 };
 
-use crate::{chunks::ChunkTypes, queries::TileComponent};
+use crate::{
+    chunks::ChunkTypes,
+    queries::{ReadOnlyTileData, TileComponent, TileQueryData},
+};
 
 /// Maps to [`bevy::sprite_render::TilemapChunk`] on each chunk.
 #[derive(Component, Clone, Debug)]
@@ -21,6 +24,47 @@ pub struct TilemapRenderingInfo {
     pub alpha_mode: AlphaMode2d,
 }
 
+impl crate::queries::TileData for &TileData {
+    type ReadOnly = Self;
+}
+
+/// Safety: &T is readonly.
+unsafe impl ReadOnlyTileData for &TileData {}
+
+impl TileQueryData for &TileData {
+    type Item<'w, 's> = &'w TileData;
+
+    type Source = &'static TilemapChunkTileData;
+
+    fn get<'w, 's, 'i: 's>(
+        source: <<Self as TileQueryData>::Source as QueryData>::Item<'w, 's>,
+        index: usize,
+    ) -> Option<Self::Item<'w, 'i>> {
+        source.0.get(index).unwrap().as_ref()
+    }
+}
+
+impl crate::queries::TileData for &mut TileData {
+    type ReadOnly = &'static TileData;
+}
+
+impl TileQueryData for &mut TileData {
+    type Item<'w, 's> = &'w mut TileData;
+
+    type Source = &'static mut TilemapChunkTileData;
+
+    fn get<'w, 's, 'i: 's>(
+        mut source: <<Self as TileQueryData>::Source as QueryData>::Item<'w, 's>,
+        index: usize,
+    ) -> Option<Self::Item<'w, 'i>> {
+        let t = source.0.get_mut(index).unwrap() as *mut Option<TileData>;
+        // Safety: :)
+        let t = unsafe { t.as_mut().unwrap() }.as_mut();
+        t
+    }
+}
+
+/// SAFETY: pls go away red line
 unsafe impl TileComponent for TileData {
     #[inline]
     fn insert_tile_into_chunk<const N: usize>(
@@ -42,14 +86,13 @@ unsafe impl TileComponent for TileData {
                     .0
                     .insert(TypeId::of::<Self>());
 
-                let rendering_info = chunk
-                    .world_scope(|world|
-                        world
-                            .query::<Option<&TilemapRenderingInfo>>()
-                            .get(world, map_id)
-                            .expect("Chunk's parent map not found")
-                            .cloned()
-                    );
+                let rendering_info = chunk.world_scope(|world| {
+                    world
+                        .query::<Option<&TilemapRenderingInfo>>()
+                        .get(world, map_id)
+                        .expect("Chunk's parent map not found")
+                        .cloned()
+                });
 
                 if let Some(rendering_info) = rendering_info {
                     let rendering_info = TilemapChunk {
@@ -59,11 +102,15 @@ unsafe impl TileComponent for TileData {
                         alpha_mode: rendering_info.alpha_mode,
                     };
                     chunk.insert((
-                        TilemapChunkTileData(repeat_n(None, chunk_size.pow(N.try_into().unwrap())).collect()),
+                        TilemapChunkTileData(
+                            repeat_n(None, chunk_size.pow(N.try_into().unwrap())).collect(),
+                        ),
                         rendering_info,
                     ));
                 } else {
-                    TilemapChunkTileData(repeat_n(None, chunk_size.pow(N.try_into().unwrap())).collect());
+                    TilemapChunkTileData(
+                        repeat_n(None, chunk_size.pow(N.try_into().unwrap())).collect(),
+                    );
                 }
                 chunk.get_mut::<TilemapChunkTileData>().unwrap()
             }
@@ -108,14 +155,13 @@ unsafe impl TileComponent for TileData {
                     .0
                     .insert(TypeId::of::<Self>());
 
-                let rendering_info = chunk
-                    .world_scope(|world|
-                        world
-                            .query::<Option<&TilemapRenderingInfo>>()
-                            .get(world, map_id)
-                            .expect("Chunk's parent map not found")
-                            .cloned()
-                    );
+                let rendering_info = chunk.world_scope(|world| {
+                    world
+                        .query::<Option<&TilemapRenderingInfo>>()
+                        .get(world, map_id)
+                        .expect("Chunk's parent map not found")
+                        .cloned()
+                });
 
                 if let Some(rendering_info) = rendering_info {
                     let rendering_info = TilemapChunk {
@@ -125,11 +171,15 @@ unsafe impl TileComponent for TileData {
                         alpha_mode: rendering_info.alpha_mode,
                     };
                     chunk.insert((
-                        TilemapChunkTileData(repeat_n(None, chunk_size.pow(N.try_into().unwrap())).collect()),
+                        TilemapChunkTileData(
+                            repeat_n(None, chunk_size.pow(N.try_into().unwrap())).collect(),
+                        ),
                         rendering_info,
                     ));
                 } else {
-                    TilemapChunkTileData(repeat_n(None, chunk_size.pow(N.try_into().unwrap())).collect());
+                    TilemapChunkTileData(
+                        repeat_n(None, chunk_size.pow(N.try_into().unwrap())).collect(),
+                    );
                 }
 
                 chunk.get_mut::<TilemapChunkTileData>().unwrap()
