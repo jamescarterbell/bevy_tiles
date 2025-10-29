@@ -54,13 +54,10 @@ impl TileQueryData for &mut TileData {
     type Source = &'static mut TilemapChunkTileData;
 
     fn get<'w, 's, 'i: 's>(
-        mut source: <<Self as TileQueryData>::Source as QueryData>::Item<'w, 's>,
+        source: <<Self as TileQueryData>::Source as QueryData>::Item<'w, 's>,
         index: usize,
     ) -> Option<Self::Item<'w, 'i>> {
-        let t = source.0.get_mut(index).unwrap() as *mut Option<TileData>;
-        // Safety: :)
-        let t = unsafe { t.as_mut().unwrap() }.as_mut();
-        t
+        source.into_inner().0.get_mut(index).unwrap().as_mut()
     }
 }
 
